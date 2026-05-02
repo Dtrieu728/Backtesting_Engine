@@ -7,6 +7,7 @@ class BacktestEngine:
         self.portfolio = portfolio
         
     def run(self):
+        equity_curve = []
         for i in range(len(self.data)):
             current_data = self.data.iloc[:i+1]
             price = current_data['close'].iloc[-1]
@@ -17,6 +18,13 @@ class BacktestEngine:
             order = self.signal_handler.generate_order(signal)
             fill_price = self.execution.execute_order(order,price)
             
+            #update portfolio 
             self.portfolio.update(order,fill_price)
             
-        return self.portfolio.history
+            #Equity curve
+            equity = self.portfolio.cash + self.portfolio.position * price
+            equity_curve.append(equity)
+            
+            
+        return equity_curve
+    
