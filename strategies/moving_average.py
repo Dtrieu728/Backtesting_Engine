@@ -6,8 +6,8 @@ class MovingAverageStrategy(BaseStrategy):
         self.long_window = long_window
         
     def generate_signal(self,data):
-        short_ma = data['Close'].rolling(self.short_window).mean()
-        long_ma = data['Close'].rolling(self.long_window).mean()
+        short_ma = data['close'].rolling(self.short_window).mean()
+        long_ma = data['close'].rolling(self.long_window).mean()
         
         signal = (short_ma > long_ma).astype(int)
         return signal
