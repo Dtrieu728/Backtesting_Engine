@@ -7,7 +7,9 @@ def plot_equity_curves(results_dict):
 
     for name, curve in results_dict.items():
         plt.plot(curve, label=name)
-
+    
+    plt.xlabel("Time Steps(Days)")
+    plt.ylabel("Equity Value ($)")
     plt.title("Strategy Performance Comparison")
     plt.legend()
     plt.show()
