@@ -33,7 +33,7 @@ class BacktestEngine:
                 #Equity curve
                 equity = portfolio.get_equity(price)
                 equity_curve[name].append(equity)
-            
+                
             
         return equity_curve
     

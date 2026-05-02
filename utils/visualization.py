@@ -1,8 +1,14 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import os 
 
 def plot_equity_curves(results_dict):
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(os.path.join(current_dir, "plots"), exist_ok=True)
+    os.chdir(os.path.join(current_dir, "plots"))
+    
+    
     plt.figure(figsize=(12,6))
 
     for name, curve in results_dict.items():
@@ -12,6 +18,7 @@ def plot_equity_curves(results_dict):
     plt.ylabel("Equity Value ($)")
     plt.title("Strategy Performance Comparison")
     plt.legend()
+    plt.savefig(os.path.join(current_dir, "plots", "equity_curves.png"))
     plt.show()
     
 def performance_summary(results_dict):

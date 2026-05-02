@@ -1,5 +1,7 @@
 from data.Processed.data_handler import DataHandler
 from strategies.moving_average import MovingAverageStrategy
+from strategies.momentum_strategy import RSIStrategy
+from strategies.mean_revision import ZscoreStrategy
 from signals.signal_handler import SignalHandler
 from execution.execution_handler import ExecutionHandler
 from portfolio.portfolio import Portfolio
@@ -13,8 +15,11 @@ tracker = ResultsTracker()
 data_handler = DataHandler("data/raw/AAPL.csv")
 data = data_handler.get_data()
 
+# Initialize strategies
 strategies = {"MA_20_50": MovingAverageStrategy(20, 50),
-              "MA_50_200": MovingAverageStrategy(10, 30)}
+              "RSI": RSIStrategy(window=14),
+              "Zscore": ZscoreStrategy(window=20)
+              }
 
 signal_handler = SignalHandler()
 execution = ExecutionHandler()
@@ -27,9 +32,15 @@ engine = BacktestEngine(
     portfolio_factory=lambda: Portfolio(INITIAL_CASH)
     )
 
+
+# Run backtest 
 equity_curve = engine.run()
+#add results to tracker
 tracker.add_strategy_results(name="MA_20_50", equity_curve=equity_curve["MA_20_50"])
-tracker.add_strategy_results(name="MA_50_200", equity_curve=equity_curve["MA_50_200"])
+tracker.add_strategy_results(name="RSI", equity_curve=equity_curve["RSI"])
+tracker.add_strategy_results(name="Zscore", equity_curve=equity_curve["Zscore"])
+
+
 
 returns = compute_returns(equity_curve)
 plot_equity_curves(tracker.get_all())
