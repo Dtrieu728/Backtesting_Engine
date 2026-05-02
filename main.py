@@ -13,14 +13,23 @@ tracker = ResultsTracker()
 data_handler = DataHandler("data/raw/AAPL.csv")
 data = data_handler.get_data()
 
-strategy = MovingAverageStrategy(SHORT_WINDOW, LONG_WINDOW)
+strategies = {"MA_20_50": MovingAverageStrategy(20, 50),
+              "MA_50_200": MovingAverageStrategy(10, 30)}
+
 signal_handler = SignalHandler()
 execution = ExecutionHandler()
-portfolio = Portfolio(INITIAL_CASH)
 
-engine = BacktestEngine(data, strategy, signal_handler, execution, portfolio)
+engine = BacktestEngine(
+    data, 
+    strategies, 
+    signal_handler, 
+    execution, 
+    portfolio_factory=lambda: Portfolio(INITIAL_CASH)
+    )
+
 equity_curve = engine.run()
-tracker.add_strategy_results("MA_20_50", equity_curve)
+tracker.add_strategy_results(name="MA_20_50", equity_curve=equity_curve["MA_20_50"])
+tracker.add_strategy_results(name="MA_50_200", equity_curve=equity_curve["MA_50_200"])
 
 returns = compute_returns(equity_curve)
 plot_equity_curves(tracker.get_all())

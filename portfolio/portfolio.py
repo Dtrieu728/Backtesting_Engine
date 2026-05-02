@@ -13,3 +13,6 @@ class Portfolio:
             self.cash +=price
         
         self.history.append(self.cash + self.position * price)
+    
+    def get_equity(self,price):
+        return self.cash + self.position * price

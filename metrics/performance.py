@@ -1,18 +1,44 @@
 import numpy as np
 
 def compute_returns(equity_curve):
-    return np.diff(equity_curve) / equity_curve[:-1]
+    returns ={}
+    for name, curve in equity_curve.items():
+        returns[name] = np.diff(curve) / curve[:-1]
+    return returns
 
-def sharpe_ratio(returns):
-    return np.mean(returns) / np.std(returns)
+def sharpe_ratio(returns_dict, periods_per_year=252):
+    results = {}
 
-def max_drawdown(equity_curve):
-    peak = equity_curve[0]
-    max_dd = 0
+    for name, returns in returns_dict.items():
+        returns = np.array(returns)
 
-    for x in equity_curve:
-        peak = max(peak, x)
-        dd = (peak - x) / peak
-        max_dd = max(max_dd, dd)
+        if len(returns) < 2 or np.std(returns) == 0:
+            results[name] = {
+                "sharpe": 0,
+                "mean": 0,
+                "vol": 0
+            }
+        else:
+            mean = np.mean(returns)
+            std = np.std(returns)
 
-    return max_dd
+            results[name] = {
+                "sharpe": (mean / std) * np.sqrt(periods_per_year),
+                "mean": mean,
+                "vol": std
+            }
+
+    return results
+
+def max_drawdown(equity_dict):
+    drawdowns = {}
+
+    for name, curve in equity_dict.items():
+        curve = np.array(curve)
+
+        peak = np.maximum.accumulate(curve)
+        dd = (curve - peak) / peak
+
+        drawdowns[name] = np.min(dd)
+
+    return drawdowns
