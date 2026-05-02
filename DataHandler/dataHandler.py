@@ -19,3 +19,17 @@ class HistoricCSVDataHandler(DataHandler):
             df = pd.read_csv(f"{self.csv_dr}/{symbol}.csv",parse_date =True,index_col=0)
             df.sort_index(inplace=True)
             self.data[symbol] = df.iterrows()
+    
+    def stream_next(self):
+        for symbol in self.symbol_list:
+            try:
+                bar = next(self.data[symbol])
+                self.latest_data[symbol].append(bar)
+            except StopIteration:
+                return False
+        
+        self.events.put(MarketEvent())
+        return True
+    
+    def get_latest_bars(self, symbol, N=1):
+        return self.latest_data[symbol][-N:]
