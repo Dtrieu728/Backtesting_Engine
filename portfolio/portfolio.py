@@ -4,15 +4,13 @@ class Portfolio:
         self.position= 0 
         self.history = []
         
-    def update(self,order,price):
-        if order == "BUY":
-            self.position += 1
-            self.cash-=price
-        elif order == "SELL":
-            self.position-=1 
-            self.cash +=price
-        
-        self.history.append(self.cash + self.position * price)
+    def update(self,order,exec_price):
+        self.cash -= order * exec_price
+        self.position += order
     
     def get_equity(self,price):
         return self.cash + self.position * price
+    
+    def record(self,price):
+        equity = self.get_equity(price)
+        self.history.append(equity)

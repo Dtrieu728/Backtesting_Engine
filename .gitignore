@@ -1,0 +1,14 @@
+# virtual env
+.venv/
+
+# pycache
+__pycache__/
+
+# mypy
+.mypy_cache/
+
+# Bash scripts
+Scripts/
+
+# Directories
+.Boilerplate

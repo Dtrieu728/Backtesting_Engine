@@ -37,7 +37,7 @@ engine = BacktestEngine(
     )
 
 # Run backtest 
-equity_curve = engine.run()
+equity_curve, turnover_curve = engine.run()
 
 
 #add results to tracker
@@ -65,6 +65,11 @@ strategy_returns = compute_returns(raw_data)
 strategy_sharpe = sharpe_ratio(strategy_returns)
 strategy_dd = max_drawdown(raw_data)
 
+avg_turnover = {
+    name: np.mean(turnover) 
+    for name, turnover in turnover_curve.items()
+}
+
 
 #Visualization
 plot_data = {
@@ -80,5 +85,5 @@ performance_summary(raw_data)
 #Print performance summary
 print("Strategy Sharpe:", strategy_sharpe)
 print("Strategy Drawdown:", strategy_dd)
-
+print("Average Turnover:", avg_turnover)
 print("Buy & Hold Sharpe:", bh_sharpe)

@@ -1,3 +1,6 @@
+from config.config import TRANSACTION_COST
+import numpy as np
+
 class BacktestEngine:
     def __init__(self,data,strategies,signal_handler, execution,portfolio_factory):
         self.data =data
@@ -13,6 +16,7 @@ class BacktestEngine:
         
     def run(self):
         equity_curve = {name:[] for name in self.strategies.keys()}
+        turnover_curve = {name:[] for name in self.strategies.keys()}
         
         for i in range(len(self.data)):
             current_data = self.data.iloc[:i+1]
@@ -20,20 +24,31 @@ class BacktestEngine:
             
             for name,strategy in self.strategies.items():
         
-                signal_series =strategy.generate_signal(current_data)
-                signal = signal_series.iloc[-1]
-            
-                order = self.signal_handler.generate_order(signal)
-                fill_price = self.execution.execute_order(order,price)
-            
+                signal=strategy.generate_signal(current_data)
+                
+                portfolio = self.portfolios[name]
+                old_pos = portfolio.position
+    
+                order = signal
+                
+                # Execute order
+                exec_price = price + TRANSACTION_COST * price * np.sign(order)
+                
                 #update portfolio 
-                portfolio =self.portfolios[name]
-                portfolio.update(order,fill_price)
+                portfolio.update(order, exec_price)
+                
+                new_pos = portfolio.position
+                
+                # Track turnover
+                turnover = abs(new_pos- old_pos)
+                turnover_curve[name].append(turnover)
             
                 #Equity curve
-                equity = portfolio.get_equity(price)
+                equity = portfolio.cash + portfolio.position * price
                 equity_curve[name].append(equity)
+                # print(name, signal, portfolio.position)
+                # print(name, portfolio.cash, portfolio.position)
                 
             
-        return equity_curve
+        return equity_curve, turnover_curve
     
