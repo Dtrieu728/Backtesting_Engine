@@ -10,8 +10,12 @@ from metrics.performance import *
 from metrics.results_tracker import ResultsTracker
 from config.config import *
 from utils.visualization import *
+from benchmark.buy_hold import BuyAndHoldBenchmark
 
+
+#Load data and initialize components
 tracker = ResultsTracker()
+
 data_handler = DataHandler("data/raw/AAPL.csv")
 data = data_handler.get_data()
 
@@ -32,19 +36,49 @@ engine = BacktestEngine(
     portfolio_factory=lambda: Portfolio(INITIAL_CASH)
     )
 
-
 # Run backtest 
 equity_curve = engine.run()
+
+
 #add results to tracker
-tracker.add_strategy_results(name="MA_20_50", equity_curve=equity_curve["MA_20_50"])
-tracker.add_strategy_results(name="RSI", equity_curve=equity_curve["RSI"])
-tracker.add_strategy_results(name="Zscore", equity_curve=equity_curve["Zscore"])
+for name in equity_curve:
+    tracker.add_strategy_results(name, equity_curve[name])
+
+#Benchmark (Buy and Hold)
+bh = BuyAndHoldBenchmark("AAPL")
+bh_equity = bh.run(data)
+
+bh_returns = np.diff(bh_equity) / bh_equity[:-1]
+bh_sharpe = sharpe_ratio({"BuyHold": bh_returns})
 
 
 
-returns = compute_returns(equity_curve)
-plot_equity_curves(tracker.get_all())
-performance_summary(tracker.get_all())
+#Prepare data for visualization
+def normalize_curve(curve):
+    curve = np.asarray(curve)
+    return curve / curve[0]
 
-print("Sharpe:", sharpe_ratio(returns))
-print("Max Drawdown:", max_drawdown(equity_curve))
+
+raw_data = tracker.get_all()
+
+strategy_returns = compute_returns(raw_data)
+strategy_sharpe = sharpe_ratio(strategy_returns)
+strategy_dd = max_drawdown(raw_data)
+
+
+#Visualization
+plot_data = {
+    name: normalize_curve(curve) 
+    for name, curve in raw_data.items()
+}
+plot_data["Buy & Hold"] = normalize_curve(bh_equity)
+
+plot_equity_curves(plot_data)
+performance_summary(raw_data)
+
+
+#Print performance summary
+print("Strategy Sharpe:", strategy_sharpe)
+print("Strategy Drawdown:", strategy_dd)
+
+print("Buy & Hold Sharpe:", bh_sharpe)

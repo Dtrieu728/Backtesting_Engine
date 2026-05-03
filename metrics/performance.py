@@ -10,34 +10,45 @@ def sharpe_ratio(returns_dict, periods_per_year=252):
     results = {}
 
     for name, returns in returns_dict.items():
-        returns = np.array(returns)
+        returns = np.asarray(returns)
 
-        if len(returns) < 2 or np.std(returns) == 0:
-            results[name] = {
-                "sharpe": 0,
-                "mean": 0,
-                "vol": 0
-            }
+        if len(returns) < 2:
+            results[name] = {"sharpe": 0, "mean": 0, "vol": 0}
+            continue
+
+        mean = np.mean(returns)
+        vol = np.std(returns, ddof=1)
+
+        if vol == 0:
+            sharpe = 0
         else:
-            mean = np.mean(returns)
-            std = np.std(returns)
+            sharpe = (mean / vol) * np.sqrt(periods_per_year)
 
-            results[name] = {
-                "sharpe": (mean / std) * np.sqrt(periods_per_year),
-                "mean": mean,
-                "vol": std
-            }
+        results[name] = {
+            "sharpe": sharpe,
+            "mean": mean,
+            "vol": vol
+        }
 
     return results
+
 
 def max_drawdown(equity_dict):
     drawdowns = {}
 
     for name, curve in equity_dict.items():
-        curve = np.array(curve)
+        curve = np.asarray(curve)
+
+        if len(curve) == 0:
+            drawdowns[name] = 0
+            continue
 
         peak = np.maximum.accumulate(curve)
-        dd = (curve - peak) / peak
+
+        dd = np.zeros_like(curve)
+        valid = peak != 0
+
+        dd[valid] = (curve[valid] - peak[valid]) / peak[valid]
 
         drawdowns[name] = np.min(dd)
 

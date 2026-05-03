@@ -9,3 +9,5 @@ class ResultsTracker:
     
     def get_all(self):
         return self.results
+    
+    

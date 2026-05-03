@@ -14,10 +14,11 @@ def plot_equity_curves(results_dict):
     for name, curve in results_dict.items():
         plt.plot(curve, label=name)
     
-    plt.xlabel("Time Steps(Days)")
-    plt.ylabel("Equity Value ($)")
+    plt.xlabel("Time")
+    plt.ylabel("Normalized Equity")
     plt.title("Strategy Performance Comparison")
     plt.legend()
+    plt.grid(True)
     plt.savefig(os.path.join(current_dir, "plots", "equity_curves.png"))
     plt.show()
     
