@@ -55,6 +55,8 @@ class WalkForwardOptimizer:
                     best_param_for_strategy = params
 
             best_params[name] = best_param_for_strategy
+            print(f"Testing params: {params}, Sharpe: {sharpe:.3f}")
+        print(f"\n Optimizing strategy: {name}")
 
         return best_params
     
@@ -91,5 +93,10 @@ class WalkForwardOptimizer:
                 "turnover": turnover,
                 "params": best_params
             })
+            for i, (train, test) in enumerate(self.split()):
+                print(f"\n Window {i+1}")
+                print(f"Train: {train.index[0]} → {train.index[-1]}")
+                print(f"Test : {test.index[0]} → {test.index[-1]}")
+            
 
         return results

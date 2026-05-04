@@ -53,3 +53,18 @@ def max_drawdown(equity_dict):
         drawdowns[name] = np.min(dd)
 
     return drawdowns
+
+def window_sharpes(results, strategy_name):
+    sharpes = []
+
+    for r in results:
+        eq = np.array(r["equity"][strategy_name])
+        returns = np.diff(eq) / eq[:-1]
+        sharpe = np.mean(returns) / (np.std(returns) + 1e-8)
+        sharpes.append(sharpe)
+
+    return sharpes
+
+def param_stability(results, strategy_name):
+    params = [r["params"][strategy_name] for r in results]
+    return params

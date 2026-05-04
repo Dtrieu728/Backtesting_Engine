@@ -11,13 +11,12 @@ from metrics.results_tracker import ResultsTracker
 from config.config import *
 from utils.visualization import *
 from benchmark.buy_hold import BuyAndHoldBenchmark
+from research.walk_forward import WalkForwardOptimizer
+
+# ----------- #
+#Backtest engine
 
 
-#Load data and initialize components
-tracker = ResultsTracker()
-
-data_handler = DataHandler("data/raw/AAPL.csv")
-data = data_handler.get_data()
 
 # Initialize strategies
 strategies = {"MA_50_200": MovingAverageStrategy(50, 200),

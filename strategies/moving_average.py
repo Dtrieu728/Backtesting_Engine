@@ -2,9 +2,9 @@ from .base_strategy import BaseStrategy
 import numpy as np
 
 class MovingAverageStrategy(BaseStrategy):
-    def __init__(self, short_window, long_window):
-        self.short_window = short_window
-        self.long_window = long_window
+    def __init__(self, params):
+        self.short_window = params["short"]
+        self.long_window = params["long"]
 
     def generate_signal(self, data):
         if len(data) < self.long_window:

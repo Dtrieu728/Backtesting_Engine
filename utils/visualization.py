@@ -22,6 +22,33 @@ def plot_equity_curves(results_dict):
     plt.savefig(os.path.join(current_dir, "plots", "equity_curves.png"))
     plt.show()
     
+def plot_equity(results, strategy_name):
+    full_curve = []
+
+    for r in results:
+        equity = r["equity"][strategy_name]
+        full_curve.extend(equity)
+
+    plt.figure()
+    plt.plot(full_curve)
+    plt.title("Walk-Forward Equity Curve")
+    plt.xlabel("Time")
+    plt.ylabel("Equity")
+    plt.show()
+
+def plot_turnover(results, strategy_name):
+    turnover = []
+
+    for r in results:
+        turnover.extend(r["turnover"][strategy_name])
+
+    plt.figure()
+    plt.plot(turnover)
+    plt.title("Turnover Over Time")
+    plt.xlabel("Time")
+    plt.ylabel("Turnover")
+    plt.show()
+    
 def performance_summary(results_dict):
     summary = []
     
