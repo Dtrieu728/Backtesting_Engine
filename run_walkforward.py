@@ -9,6 +9,7 @@ from portfolio.portfolio import Portfolio
 from signals.signal_handler import SignalHandler
 from execution.execution_handler import ExecutionHandler
 from data.Processed.data_handler import DataHandler
+from research.regime import RegimeDetector
 
 # Walkforward
 from research.walk_forward import WalkForwardOptimizer
@@ -58,13 +59,19 @@ optimizer = WalkForwardOptimizer(
     portfolio_factory=lambda: Portfolio(INITIAL_CASH)
 )
 
+#Regime detector
+regime_detector = RegimeDetector()
+
+
+
 # Run Walk_forward
 strategy_name = "ma"
-results = optimizer.run(base_strategies)
+results = optimizer.run(base_strategies,regime_detector=regime_detector)
 plot_equity(results,strategy_name)
 plot_turnover(results,strategy_name)
 
 sharpes = window_sharpes(results,strategy_name)
+sharpes = [float(x)for x in sharpes]
 print("Window Sharpe:" , sharpes)
 # print(results)
 

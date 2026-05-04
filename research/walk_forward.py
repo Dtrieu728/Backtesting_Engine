@@ -30,6 +30,8 @@ class WalkForwardOptimizer:
 
         for name, strategy_class in base_strategies.items():
 
+            print(f"\n Optimizing strategy: {name}")
+
             best_sharpe = -np.inf
             best_param_for_strategy = None
 
@@ -43,20 +45,23 @@ class WalkForwardOptimizer:
                     signal_handler=self.signal_handler,
                     execution=self.execution,
                     portfolio_factory=self.portfolio_factory
-                    )
+                )
 
                 equity, _ = engine.run()
-                
-                returns = np.diff(equity[name])/equity[name][:-1]
-                sharpe =np.mean(returns)/ np.std(returns)
+
+                returns = np.diff(equity[name]) / (np.array(equity[name][:-1]) + 1e-8)
+
+                sharpe = np.mean(returns) / (np.std(returns) + 1e-8)
+
+                print(f"   Params: {params} → Sharpe: {sharpe:.4f}")
 
                 if sharpe > best_sharpe:
                     best_sharpe = sharpe
                     best_param_for_strategy = params
 
+            print(f"Best params: {best_param_for_strategy}, Sharpe: {best_sharpe:.4f}")
+
             best_params[name] = best_param_for_strategy
-            print(f"Testing params: {params}, Sharpe: {sharpe:.3f}")
-        print(f"\n Optimizing strategy: {name}")
 
         return best_params
     
@@ -78,25 +83,30 @@ class WalkForwardOptimizer:
         return engine.run()
     
     
-    def run(self, base_strategies):
+    def run(self, base_strategies,regime_detector = None):
 
         results = []
 
-        for train, test in self.split():
+        for i, (train, test) in enumerate(self.split()):
+
+            print(f"\n Window {i+1}")
+            print(f"Train: {train.index[0]} → {train.index[-1]}")
+            print(f"Test : {test.index[0]} → {test.index[-1]}")
 
             best_params = self.optimize(train, base_strategies)
 
             equity, turnover = self.test(test, best_params, base_strategies)
+            
+            regime = None
+            if regime_detector:
+                regime = regime_detector.detect(test)
 
             results.append({
                 "equity": equity,
                 "turnover": turnover,
-                "params": best_params
+                "params": best_params,
+                "regime":regime
             })
-            for i, (train, test) in enumerate(self.split()):
-                print(f"\n Window {i+1}")
-                print(f"Train: {train.index[0]} → {train.index[-1]}")
-                print(f"Test : {test.index[0]} → {test.index[-1]}")
-            
+            print(f"window {i+1} regime:{regime}")
 
         return results
