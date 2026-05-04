@@ -17,6 +17,7 @@ class BacktestEngine:
     def run(self):
         equity_curve = {name:[] for name in self.strategies.keys()}
         turnover_curve = {name:[] for name in self.strategies.keys()}
+        max_order = 1e3
         
         for i in range(len(self.data)):
             current_data = self.data.iloc[:i+1]
@@ -25,30 +26,50 @@ class BacktestEngine:
             for name,strategy in self.strategies.items():
         
                 signal=strategy.generate_signal(current_data)
-                
                 portfolio = self.portfolios[name]
+                order = self.signal_handler.generate_order(
+                    signal, 
+                    portfolio,
+                    price
+                )
+                
+                #avoids micro orders that can cause issues in execution and performance metrics
+                if abs(order) < 1e-6:
+                    order = 0.0
+                    
+                order = np.clip(order,-max_order,max_order)
                 old_pos = portfolio.position
-    
-                order = signal
+                
+                if not np.isfinite(price):
+                    continue
+                if not np.isfinite(order):
+                    order = 0.0
+                
+                
+                # Transaction cost
+                cost = abs(order) * price * TRANSACTION_COST
                 
                 # Execute order
-                exec_price = price + TRANSACTION_COST * price * np.sign(order)
+                fill_price = self.execution.execute_order(order, price)
                 
-                #update portfolio 
-                portfolio.update(order, exec_price)
+                #update portfolio
+                portfolio.update(order, fill_price, cost)
                 
                 new_pos = portfolio.position
                 
-                # Track turnover
-                turnover = abs(new_pos- old_pos)
-                turnover_curve[name].append(turnover)
             
-                #Equity curve
+                #Equity curve and turnover
                 equity = portfolio.cash + portfolio.position * price
+                if not np.isfinite(equity) or equity <= 0:
+                    return 0.0
+                
+                turnover = abs(new_pos - old_pos)*price /equity
+                
+                turnover_curve[name].append(turnover)
                 equity_curve[name].append(equity)
                 # print(name, signal, portfolio.position)
                 # print(name, portfolio.cash, portfolio.position)
-                
+
             
         return equity_curve, turnover_curve
     

@@ -1,5 +1,6 @@
+from .base_strategy import BaseStrategy
 import numpy as np
-class ZscoreStrategy:
+class ZscoreStrategy(BaseStrategy):
     def __init__(self, window=20):
         self.window = window
 

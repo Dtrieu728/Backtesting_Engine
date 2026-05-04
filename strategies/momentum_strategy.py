@@ -1,5 +1,6 @@
+from .base_strategy import BaseStrategy
 import numpy as np
-class RSIStrategy:
+class RSIStrategy(BaseStrategy):
     def __init__(self, window=14):
         self.window = window
         

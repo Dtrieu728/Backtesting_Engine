@@ -1,11 +1,19 @@
+import numpy as np
 class Portfolio:
     def __init__(self,initial_cash):
         self.cash = initial_cash
         self.position= 0 
         self.history = []
         
-    def update(self,order,exec_price):
-        self.cash -= order * exec_price
+    def update(self,order,exec_price,cost):
+        if not np.isfinite(order) or not np.isfinite(exec_price):
+            return
+        trade_value = order * exec_price
+        if not np.isfinite(trade_value):
+            return
+        
+        self.cash -= trade_value
+        self.cash -= cost
         self.position += order
     
     def get_equity(self,price):

@@ -20,7 +20,7 @@ data_handler = DataHandler("data/raw/AAPL.csv")
 data = data_handler.get_data()
 
 # Initialize strategies
-strategies = {"MA_20_50": MovingAverageStrategy(20, 50),
+strategies = {"MA_50_200": MovingAverageStrategy(50, 200),
               "RSI": RSIStrategy(window=14),
               "Zscore": ZscoreStrategy(window=20)
               }
