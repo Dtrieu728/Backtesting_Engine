@@ -1,4 +1,4 @@
-from config.config import TRANSACTION_COST
+from config.config import TRANSACTION_COST,INITIAL_CASH
 import numpy as np
 
 class BacktestEngine:
@@ -23,47 +23,54 @@ class BacktestEngine:
             current_data = self.data.iloc[:i+1]
             price = current_data['close'].iloc[-1]
             
+            if not np.isfinite(price):
+                continue
+            
             for name,strategy in self.strategies.items():
-        
-                signal=strategy.generate_signal(current_data)
                 portfolio = self.portfolios[name]
+                
+                signal = strategy.generate_signal(current_data)
                 order = self.signal_handler.generate_order(
                     signal, 
                     portfolio,
                     price
                 )
-                
-                #avoids micro orders that can cause issues in execution and performance metrics
-                if abs(order) < 1e-6:
-                    order = 0.0
-                    
-                order = np.clip(order,-max_order,max_order)
-                old_pos = portfolio.position
-                
-                if not np.isfinite(price):
-                    continue
                 if not np.isfinite(order):
                     order = 0.0
+                order = np.clip(order,-1e3,1e3)
                 
+                target_position=portfolio.position + order
+                equity = portfolio.cash + portfolio.position * price
                 
+        
+                max_exposure = 0.3 * equity
+                max_position = max_exposure / price if price != 0 else 0.0
+                
+                target_position = np.clip(target_position,-max_position,max_position)
+                order = target_position - portfolio.position
+                
+                         
                 # Transaction cost
                 cost = abs(order) * price * TRANSACTION_COST
                 
                 # Execute order
                 fill_price = self.execution.execute_order(order, price)
                 
+                
                 #update portfolio
-                portfolio.update(order, fill_price, cost)
-                
-                new_pos = portfolio.position
-                
-            
-                #Equity curve and turnover
+                portfolio.update(order,fill_price,cost)
                 equity = portfolio.cash + portfolio.position * price
-                if not np.isfinite(equity) or equity <= 0:
-                    return 0.0
+                equity = max(equity,1e-8)
                 
-                turnover = abs(new_pos - old_pos)*price /equity
+                leverage = abs(portfolio.position * price) /equity
+                if leverage >1.0:
+                    scale = 1.0 /leverage
+                    portfolio.position *= scale
+                    
+                #Equity curve and turnover
+                new_equity = portfolio.cash + portfolio.position*price
+                turnover = abs(order)*price /equity
+                
                 
                 turnover_curve[name].append(turnover)
                 equity_curve[name].append(equity)

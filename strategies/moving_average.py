@@ -5,20 +5,29 @@ class MovingAverageStrategy(BaseStrategy):
     def __init__(self, short_window, long_window):
         self.short_window = short_window
         self.long_window = long_window
-        
-    def generate_signal(self,data):
+
+    def generate_signal(self, data):
         if len(data) < self.long_window:
-            return 0
-        
-        short_ma = data['close'].rolling(self.short_window).mean().iloc[-1]
-        long_ma = data['close'].rolling(self.long_window).mean().iloc[-1]
-        
-        if np.isnan(short_ma) or np.isnan(long_ma):
-            return 0
-        
-        if short_ma > long_ma:
-            return 1
-        elif short_ma < long_ma:
-            return -1
-        else:
-            return 0
+            return 0.0
+
+        prices = data['close']
+
+        short_ma = prices.rolling(self.short_window).mean().iloc[-1]
+        long_ma = prices.rolling(self.long_window).mean().iloc[-1]
+
+        if np.isnan(short_ma) or np.isnan(long_ma) or long_ma == 0:
+            return 0.0
+
+        # normalize DIFFERENCE by volatility proxy
+        returns = prices.pct_change().dropna()
+        vol = returns.std()
+
+        if vol == 0 or np.isnan(vol):
+            return 0.0
+
+        signal = (short_ma - long_ma) / (long_ma * vol)
+
+        # squash into stable range [-1, 1]
+        signal = np.tanh(signal)
+
+        return float(signal)
