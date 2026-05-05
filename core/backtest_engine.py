@@ -33,13 +33,13 @@ class BacktestEngine:
                 portfolio = self.portfolios[name]
 
                 signal = strategy.generate_signal(current_data)
-                signal = np.tanh(signal)
+                signal = np.clip(signal, -1, 1)
 
                 # optional regime scaling
                 risk_multiplier = {
-                    "trend": 1.0,
-                    "chop": 0.3,
-                    "high_vol": 0.1
+                    "trend": 1.2,
+                    "chop": 0.6,
+                    "high_vol": 0.4
                 }.get(regime, 1.0)
 
                 signal *= risk_multiplier
@@ -52,7 +52,7 @@ class BacktestEngine:
                 order = np.clip(order, -1e3, 1e3)
 
                 equity = portfolio.cash + portfolio.position * price
-                max_position = (0.3 * equity) / price if price != 0 else 0
+                max_position = (0.8 * equity) / price if price != 0 else 0
 
                 target_position = np.clip(portfolio.position + order, -max_position, max_position)
                 order = target_position - portfolio.position

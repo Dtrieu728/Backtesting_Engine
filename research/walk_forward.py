@@ -51,7 +51,7 @@ class WalkForwardOptimizer:
 
                 returns = np.diff(equity[name]) / (np.array(equity[name][:-1]) + 1e-8)
 
-                sharpe = np.mean(returns) / (np.std(returns) + 1e-8)
+                sharpe = sharpe = (np.mean(returns) / (np.std(returns) + 1e-9)) * np.sqrt(252)
 
                 print(f"   Params: {params} → Sharpe: {sharpe:.4f}")
 
