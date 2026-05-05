@@ -3,6 +3,8 @@ Backtesting_Engine Side project
 
 ## Overview
 This is an event-driven backtesting engine for trading strategies. It simulates trading on historical data using an event queue system.
+-  Strict no-lookahead simulation: only historical data up to time t is used
+
 
 ## Components
 - **events.py**: Defines event classes (MarketEvent, SignalEvent, OrderEvent, FillEvent)
@@ -22,3 +24,10 @@ This is an event-driven backtesting engine for trading strategies. It simulates 
 - Create new strategies by inheriting from `Strategy`
 - Implement custom portfolio management in `Portfolio`
 - Add realistic execution simulation in `ExecutionHandler` 
+
+## Work-in progress features
+- [ ] Walk forward Testing
+- [ ] Better Benchmark system
+- [ ] Risk metrics upgrade
+- [ ] Rolling performance dashboard
+- [ ] Parameter optimization
