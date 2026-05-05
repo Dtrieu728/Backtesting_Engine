@@ -25,15 +25,15 @@ class WalkForwardOptimizer:
             yield train, test
             
     def optimize(self, train_data, base_strategies):
+        strategy_scores = {}
 
-        best_params = {}
 
         for name, strategy_class in base_strategies.items():
 
             print(f"\n Optimizing strategy: {name}")
 
             best_sharpe = -np.inf
-            best_param_for_strategy = None
+            best_params = None
 
             for params in self.strategies_grid[name]:
 
@@ -57,30 +57,33 @@ class WalkForwardOptimizer:
 
                 if sharpe > best_sharpe:
                     best_sharpe = sharpe
-                    best_param_for_strategy = params
+                    best_params= params
 
-            print(f"Best params: {best_param_for_strategy}, Sharpe: {best_sharpe:.4f}")
+            print(f"Best Params: {best_params}, Sharpe: {best_sharpe:.4f}")
 
-            best_params[name] = best_param_for_strategy
+            strategy_scores[name] = (best_sharpe,best_params)
 
-        return best_params
+        return strategy_scores
     
-    def test(self, test_data, best_params, base_strategies):
+    def test(self, test_data, strategy_scores, base_strategies):
+        best_strategy = max(strategy_scores.items(),key=lambda x:x[1][0])
+        
+        best_name = best_strategy[0]
+        best_params = best_strategy[1][1]
 
-        strategies = {
-            name: base_strategies[name](params=best_params[name])
-            for name in base_strategies
-        }
+        strategy = base_strategies[best_name](params=best_params)
+
 
         engine = self.engine_class(
             data=test_data,
-            strategies=strategies,
+            strategies={best_name:strategy},
             signal_handler=self.signal_handler,
             execution=self.execution,
             portfolio_factory=self.portfolio_factory
         )
+        equity, turnover = engine.run()
 
-        return engine.run()
+        return equity,turnover,best_name
     
     
     def run(self, base_strategies,regime_detector = None):
@@ -94,8 +97,7 @@ class WalkForwardOptimizer:
             print(f"Test : {test.index[0]} → {test.index[-1]}")
 
             best_params = self.optimize(train, base_strategies)
-
-            equity, turnover = self.test(test, best_params, base_strategies)
+            equity, turnover, best_name = self.test(test, best_params, base_strategies)
             
             regime = None
             if regime_detector:
@@ -105,7 +107,8 @@ class WalkForwardOptimizer:
                 "equity": equity,
                 "turnover": turnover,
                 "params": best_params,
-                "regime":regime
+                "regime":regime,
+                "strategy":best_name
             })
             print(f"window {i+1} regime:{regime}")
 

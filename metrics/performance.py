@@ -54,17 +54,60 @@ def max_drawdown(equity_dict):
 
     return drawdowns
 
-def window_sharpes(results, strategy_name):
+def max_drawdown_curve(curve):
+    curve = np.asarray(curve)
+
+    if len(curve) == 0:
+        return 0
+
+    peak = np.maximum.accumulate(curve)
+    dd = (curve - peak) / (peak + 1e-9)
+
+    return np.min(dd)
+
+def window_sharpes(results):
     sharpes = []
 
     for r in results:
-        eq = np.array(r["equity"][strategy_name])
-        returns = np.diff(eq) / eq[:-1]
-        sharpe = np.mean(returns) / (np.std(returns) + 1e-8)
+        strat = r["strategy"]
+        eq = np.array(r["equity"][strat])
+
+        if len(eq) < 2:
+            sharpes.append(0)
+            continue
+
+        returns = np.diff(eq) / (eq[:-1] + 1e-9)
+        sharpe = np.mean(returns) / (np.std(returns) + 1e-9)
+
         sharpes.append(sharpe)
 
     return sharpes
 
-def param_stability(results, strategy_name):
-    params = [r["params"][strategy_name] for r in results]
-    return params
+def param_stability(results):
+    return [
+        (r["strategy"], r["params"][r["strategy"]])
+        for r in results
+    ]
+    
+
+def overall_performance(results):
+    full_equity = []
+
+    for r in results:
+        strat = r["strategy"]
+        eq = np.array(r["equity"][strat])
+
+        eq = eq / eq[0]  # normalize
+
+        if len(full_equity) == 0:
+            full_equity.extend(eq)
+        else:
+            full_equity.extend(eq * full_equity[-1])
+
+    returns = np.diff(full_equity) / (np.array(full_equity[:-1]) + 1e-9)
+
+    return {
+        "sharpe": sharpe(returns),
+        "max_dd": max_drawdown_curve(full_equity),
+        "final_return": full_equity[-1] - 1
+    }

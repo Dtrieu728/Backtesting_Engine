@@ -1,8 +1,8 @@
 from .base_strategy import BaseStrategy
 import numpy as np
 class ZscoreStrategy(BaseStrategy):
-    def __init__(self, window=20):
-        self.window = window
+    def __init__(self, params):
+        self.window = params["window"]
 
     def generate_signal(self, data):
         price = data['close']

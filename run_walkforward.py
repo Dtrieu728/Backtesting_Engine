@@ -1,3 +1,7 @@
+# libraries 
+import numpy as np
+from collections import defaultdict
+
 # Strategies
 from strategies.moving_average import MovingAverageStrategy
 from strategies.momentum_strategy import RSIStrategy
@@ -17,6 +21,7 @@ from research.walk_forward import WalkForwardOptimizer
 # Metrics
 from metrics.performance import window_sharpes
 from metrics.results_tracker import ResultsTracker
+from metrics.performance import max_drawdown_curve
 
 #Benchmark
 from benchmark.buy_hold import BuyAndHoldBenchmark
@@ -37,13 +42,22 @@ strategies_grid = {
     "ma":[
         {"short":5, "long":20},
         {"short":10, "long":50},
-        {"short":20, "long":100}
+    ],
+    "rsi":[
+        {"window":14},
+        {"window":21}
+    ],
+    "zscore":[
+        {"window":20},
+        {"window":50}
     ]
 }
 
 # Base Strategy
 base_strategies = {
-    "ma": MovingAverageStrategy
+    "ma": MovingAverageStrategy,
+    "rsi" : RSIStrategy,
+    "zscore" : ZscoreStrategy
 }
 
 #Optimizer
@@ -65,12 +79,57 @@ regime_detector = RegimeDetector()
 
 
 # Run Walk_forward
-strategy_name = "ma"
 results = optimizer.run(base_strategies,regime_detector=regime_detector)
-plot_equity(results,strategy_name)
-plot_turnover(results,strategy_name)
 
-sharpes = window_sharpes(results,strategy_name)
+#plotting evaluations
+for strat in base_strategies.keys():
+
+    print(f"\n=== {strat.upper()} RESULTS ===")
+
+    plot_equity(results)
+    plot_turnover(results)
+    
+
+    sharpes = window_sharpes(results)
+    sharpes = [float(x) for x in sharpes]
+
+    print("Window Sharpe:", sharpes)
+
+# Metrics
+regime_returns = defaultdict(lambda: defaultdict(list))
+regime_equity = defaultdict(lambda: defaultdict(list))
+
+for res in results:
+    regime = res["regime"]
+    strat = res["strategy"]
+
+    equity = res["equity"][strat]
+
+    returns = np.diff(equity) / (np.array(equity[:-1]) + 1e-9)
+
+    regime_returns[strat][regime].extend(returns)
+    regime_equity[strat][regime].extend(equity)
+        
+for strat in base_strategies.keys():
+    for r in ["trend", "chop", "high_vol"]:
+
+        rets = regime_returns[strat][r]
+        eq = regime_equity[strat][r]
+
+        if len(rets) > 0:
+            sharpe = np.mean(rets) / (np.std(rets) + 1e-9)
+        else:
+            sharpe = 0
+
+        if len(eq) > 0:
+            dd = max_drawdown_curve(eq)
+        else:
+            dd = 0
+
+        print(f"{strat} | {r} | Sharpe: {sharpe:.3f} | DD: {dd:.3f}")
+        
+        
+sharpes = window_sharpes(results)
 sharpes = [float(x)for x in sharpes]
 print("Window Sharpe:" , sharpes)
 # print(results)

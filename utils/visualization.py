@@ -24,33 +24,50 @@ def plot_equity_curves(results_dict):
     plt.savefig(os.path.join(current_dir, "plots", "equity_curves.png"))
     plt.show()
     
-def plot_equity(results, strategy_name):
+def plot_equity(results):
     full_curve = []
 
-    for r in results:
-        equity = r["equity"][strategy_name]
-        full_curve.extend(equity)
+    for i, r in enumerate(results):
+        strat = r["strategy"]
+        equity = np.array(r["equity"][strat])
 
-    plt.figure()
+        # normalize each window to start at 1
+        equity = equity / equity[0]
+
+        if len(full_curve) == 0:
+            full_curve.extend(equity)
+        else:
+            # stitch smoothly
+            last_val = full_curve[-1]
+            full_curve.extend(equity * last_val)
+
+    plt.figure(figsize=(10,5))
     plt.plot(full_curve)
-    plt.title("Walk-Forward Equity Curve")
+    plt.title("Walk-Forward Equity Curve (Strategy Switching)")
     plt.xlabel("Time")
     plt.ylabel("Equity")
-    plt.savefig(os.path.join(current_dir, "plots","equity_plot.png"))
+
+    plt.savefig(os.path.join(current_dir, "plots", "equity_plot.png"))
+    plt.show()
 
 
-def plot_turnover(results, strategy_name):
-    turnover = []
+def plot_turnover(results):
+    full_turnover = []
 
     for r in results:
-        turnover.extend(r["turnover"][strategy_name])
+        strat = r["strategy"]  
+        turnover = r["turnover"][strat]
 
-    plt.figure()
-    plt.plot(turnover)
-    plt.title("Turnover Over Time")
+        full_turnover.extend(turnover)
+
+    plt.figure(figsize=(10,5))
+    plt.plot(full_turnover)
+    plt.title("Turnover Over Time (Strategy Switching)")
     plt.xlabel("Time")
     plt.ylabel("Turnover")
-    plt.savefig(os.path.join(current_dir, "plots","turnOver_plot.png"))
+
+    plt.savefig(os.path.join(current_dir, "plots", "turnover_plot.png"))
+    plt.show()
     
 def performance_summary(results_dict):
     summary = []
