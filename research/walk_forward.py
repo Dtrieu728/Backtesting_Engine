@@ -61,55 +61,46 @@ class WalkForwardOptimizer:
 
             print(f"Best Params: {best_params}, Sharpe: {best_sharpe:.4f}")
 
-            strategy_scores[name] = (best_sharpe,best_params)
+            strategy_scores[name] = (best_sharpe, best_params)
 
         return strategy_scores
-    
+
     def test(self, test_data, strategy_scores, base_strategies):
-        best_strategy = max(strategy_scores.items(),key=lambda x:x[1][0])
-        
-        best_name = best_strategy[0]
-        best_params = best_strategy[1][1]
+        equity_all = {}
+        turnover_all = {}
 
-        strategy = base_strategies[best_name](params=best_params)
+        for name, (_, params) in strategy_scores.items():
+            strategy = base_strategies[name](params=params)
 
+            engine = self.engine_class(
+                data=test_data,
+                strategies={name: strategy},
+                signal_handler=self.signal_handler,
+                execution=self.execution,
+                portfolio_factory=self.portfolio_factory
+            )
 
-        engine = self.engine_class(
-            data=test_data,
-            strategies={best_name:strategy},
-            signal_handler=self.signal_handler,
-            execution=self.execution,
-            portfolio_factory=self.portfolio_factory
-        )
-        equity, turnover = engine.run()
+            equity, turnover = engine.run()
 
-        return equity,turnover,best_name
-    
-    
-    def run(self, base_strategies,regime_detector = None):
+            equity_all[name] = equity[name]
+            turnover_all[name] = turnover[name]
 
+        return equity_all, turnover_all
+
+    def run(self, base_strategies, regime_detector=None):
         results = []
 
         for i, (train, test) in enumerate(self.split()):
-
-            print(f"\n Window {i+1}")
-            print(f"Train: {train.index[0]} → {train.index[-1]}")
-            print(f"Test : {test.index[0]} → {test.index[-1]}")
-
             best_params = self.optimize(train, base_strategies)
-            equity, turnover, best_name = self.test(test, best_params, base_strategies)
-            
-            regime = None
-            if regime_detector:
-                regime = regime_detector.detect(test)
+            equity, turnover = self.test(test, best_params, base_strategies)
+
+            regime = regime_detector.detect(test) if regime_detector else None
 
             results.append({
                 "equity": equity,
                 "turnover": turnover,
                 "params": best_params,
-                "regime":regime,
-                "strategy":best_name
+                "regime": regime
             })
-            print(f"window {i+1} regime:{regime}")
 
         return results

@@ -24,50 +24,53 @@ def plot_equity_curves(results_dict):
     plt.savefig(os.path.join(current_dir, "plots", "equity_curves.png"))
     plt.show()
     
-def plot_equity(results):
-    full_curve = []
+def plot_equity(results, strategy_name):
+
+    import matplotlib.pyplot as plt
+
+    plt.figure()
 
     for i, r in enumerate(results):
-        strat = r["strategy"]
-        equity = np.array(r["equity"][strat])
 
-        # normalize each window to start at 1
-        equity = equity / equity[0]
+        equity_dict = r["equity"]
 
-        if len(full_curve) == 0:
-            full_curve.extend(equity)
-        else:
-            # stitch smoothly
-            last_val = full_curve[-1]
-            full_curve.extend(equity * last_val)
+        if strategy_name not in equity_dict:
+            continue
 
-    plt.figure(figsize=(10,5))
-    plt.plot(full_curve)
-    plt.title("Walk-Forward Equity Curve (Strategy Switching)")
-    plt.xlabel("Time")
-    plt.ylabel("Equity")
+        curve = np.array(equity_dict[strategy_name], dtype=float)
 
-    plt.savefig(os.path.join(current_dir, "plots", "equity_plot.png"))
-    plt.show()
+        plt.plot(curve, label=f"window {i}")
 
-
-def plot_turnover(results):
-    full_turnover = []
-
-    for r in results:
-        strat = r["strategy"]  
-        turnover = r["turnover"][strat]
-
-        full_turnover.extend(turnover)
-
-    plt.figure(figsize=(10,5))
-    plt.plot(full_turnover)
-    plt.title("Turnover Over Time (Strategy Switching)")
-    plt.xlabel("Time")
+    plt.title(f"Equity Curve - {strategy_name}")
+    plt.legend()
     plt.ylabel("Turnover")
-
-    plt.savefig(os.path.join(current_dir, "plots", "turnover_plot.png"))
+    plt.xlabel("Equity")
     plt.show()
+    
+def plot_turnover(results, strategy_name):
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    plt.figure()
+
+    for i, r in enumerate(results):
+
+        turnover_dict = r["turnover"]
+
+        if strategy_name not in turnover_dict:
+            continue
+
+        turnover = np.asarray(turnover_dict[strategy_name], dtype=float)
+
+        plt.plot(turnover, alpha=0.6, label=f"window {i+1}")
+
+    plt.title(f"Turnover ({strategy_name})")
+    plt.ylabel("Turnover")
+    plt.xlabel("Time")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+    
     
 def performance_summary(results_dict):
     summary = []

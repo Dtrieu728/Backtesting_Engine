@@ -86,11 +86,11 @@ for strat in base_strategies.keys():
 
     print(f"\n=== {strat.upper()} RESULTS ===")
 
-    plot_equity(results)
-    plot_turnover(results)
+    plot_equity(results,strat)
+    plot_turnover(results,strat)
     
 
-    sharpes = window_sharpes(results)
+    sharpes = window_sharpes(results,strat)
     sharpes = [float(x) for x in sharpes]
 
     print("Window Sharpe:", sharpes)
@@ -101,15 +101,16 @@ regime_equity = defaultdict(lambda: defaultdict(list))
 
 for res in results:
     regime = res["regime"]
-    strat = res["strategy"]
 
-    equity = res["equity"][strat]
+    for strat in res["equity"].keys():
 
-    returns = np.diff(equity) / (np.array(equity[:-1]) + 1e-9)
+        equity = np.array(res["equity"][strat], dtype=float)
+        returns = np.diff(equity) / (equity[:-1] + 1e-9)
 
-    regime_returns[strat][regime].extend(returns)
-    regime_equity[strat][regime].extend(equity)
-        
+        regime_returns[strat][regime].extend(returns)
+        regime_equity[strat][regime].extend(equity)
+
+# Evaluation
 for strat in base_strategies.keys():
     for r in ["trend", "chop", "high_vol"]:
 
@@ -119,19 +120,14 @@ for strat in base_strategies.keys():
         if len(rets) > 0:
             sharpe = np.mean(rets) / (np.std(rets) + 1e-9)
         else:
-            sharpe = 0
+            sharpe = 0.0
 
         if len(eq) > 0:
             dd = max_drawdown_curve(eq)
         else:
-            dd = 0
+            dd = 0.0
 
         print(f"{strat} | {r} | Sharpe: {sharpe:.3f} | DD: {dd:.3f}")
         
         
-sharpes = window_sharpes(results)
-sharpes = [float(x)for x in sharpes]
-print("Window Sharpe:" , sharpes)
-# print(results)
-
 

@@ -65,30 +65,32 @@ def max_drawdown_curve(curve):
 
     return np.min(dd)
 
-def window_sharpes(results):
+
+def window_sharpes(results, strategy_name):
+    import numpy as np
+
     sharpes = []
 
     for r in results:
-        strat = r["strategy"]
-        eq = np.array(r["equity"][strat])
+        equity_dict = r["equity"]
 
-        if len(eq) < 2:
+        if strategy_name not in equity_dict:
             sharpes.append(0)
             continue
 
-        returns = np.diff(eq) / (eq[:-1] + 1e-9)
+        equity = np.asarray(equity_dict[strategy_name], dtype=float)
+
+        if len(equity) < 2:
+            sharpes.append(0)
+            continue
+
+        returns = np.diff(equity) / (equity[:-1] + 1e-9)
+
         sharpe = np.mean(returns) / (np.std(returns) + 1e-9)
 
         sharpes.append(sharpe)
 
     return sharpes
-
-def param_stability(results):
-    return [
-        (r["strategy"], r["params"][r["strategy"]])
-        for r in results
-    ]
-    
 
 def overall_performance(results):
     full_equity = []
