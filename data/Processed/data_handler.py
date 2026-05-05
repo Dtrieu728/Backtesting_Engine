@@ -1,6 +1,8 @@
 import pandas as pd
+import yfinance as yf
+import os
 
-
+curr_dir = os.path.dirname(os.path.abspath(__file__))
 class DataHandler:
     def __init__(self,file_path):
         self.data = pd.read_csv(
@@ -20,3 +22,11 @@ class DataHandler:
     
     def get_latest_bar(self,symbol,time):
         return self.data.loc[:time].iloc[-1]
+    
+    
+
+def load_market_data(symbol, start_date, end_date):
+    data = yf.download(symbol, start=start_date, end=end_date)
+    data.to_csv(os.path.join(curr_dir,"../raw",f"{symbol}.csv"))
+    
+        

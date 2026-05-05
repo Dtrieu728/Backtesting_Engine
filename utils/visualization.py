@@ -26,8 +26,6 @@ def plot_equity_curves(results_dict):
     
 def plot_equity(results, strategy_name):
 
-    import matplotlib.pyplot as plt
-
     plt.figure()
 
     for i, r in enumerate(results):
@@ -43,13 +41,11 @@ def plot_equity(results, strategy_name):
 
     plt.title(f"Equity Curve - {strategy_name}")
     plt.legend()
-    plt.ylabel("Turnover")
+    plt.ylabel("Equity")
     plt.xlabel("Equity")
     plt.show()
     
 def plot_turnover(results, strategy_name):
-    import matplotlib.pyplot as plt
-    import numpy as np
 
     plt.figure()
 
@@ -83,3 +79,11 @@ def performance_summary(results_dict):
         summary.append([name,sharpe,max_dd])
     
     return pd.DataFrame(summary, columns=["Strategy","Sharpe Ratio","Max Drawdown"])
+
+def plot_portofolio_value(results,strategy_name):
+    plt.figure()
+    
+    for i, r in enumerate(results):
+        portfolio_value 
+
+    

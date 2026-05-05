@@ -13,6 +13,7 @@ from portfolio.portfolio import Portfolio
 from signals.signal_handler import SignalHandler
 from execution.execution_handler import ExecutionHandler
 from data.Processed.data_handler import DataHandler
+from data.Processed.data_handler import load_market_data
 from research.regime import RegimeDetector
 
 # Walkforward
@@ -33,8 +34,12 @@ from utils.visualization import plot_equity, plot_turnover
 from config.config import INITIAL_CASH, TRANSACTION_COST
 
 #Load data and initialize components
+Symbol = input("Ticker:")
+Start_date = input("Start Date (YYYY-MM-DD):")
+End_date = input("End Date (YYYY-MM-DD):")
 
-data_handler = DataHandler("data/raw/AAPL.csv")
+csv_asset = load_market_data(Symbol,Start_date, End_date)
+data_handler = DataHandler(f"data/raw/{Symbol}.csv")
 data = data_handler.get_data()
 
 # Strategy Grid (walk_forward)
