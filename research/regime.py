@@ -1,32 +1,28 @@
 import numpy as np
-class RegimeDetector:
-    def __init__(self, vol_window=20, vol_threshold=0.01,
-                 short_window=10, long_window=50):
 
+class RegimeDetector:
+    def __init__(self, vol_window=20):
         self.vol_window = vol_window
-        self.vol_threshold = vol_threshold
-        self.short_window = short_window
-        self.long_window = long_window
 
     def detect(self, data):
 
-        returns = data["close"].pct_change()
+        close = data["close"]
+        returns = close.pct_change()
 
-        # volatility
         vol = returns.rolling(self.vol_window).std().iloc[-1]
 
-        # trend strength
-        close = data["close"]
+        short_ma = close.rolling(10).mean().iloc[-1]
+        long_ma = close.rolling(50).mean().iloc[-1]
 
-        short_ma = close.rolling(self.short_window).mean().iloc[-1]
-        long_ma = close.rolling(self.long_window).mean().iloc[-1]
+        if np.isnan(vol):
+            return "chop"
 
-        trend_strength = abs(short_ma - long_ma) / close.iloc[-1]
+        trend_strength = (short_ma - long_ma) / (close.iloc[-1] + 1e-9)
+        vol_norm = vol / (np.mean(returns.abs()) + 1e-9)
 
-        if np.isnan(trend_strength):
-            return "low_vol"
-
-        if trend_strength > 0.03:
+        if vol_norm > 2.0:
+            return "high_vol"
+        elif abs(trend_strength) > 0.015:
             return "trend"
-
-        return "chop"
+        else:
+            return "chop"

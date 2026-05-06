@@ -1,6 +1,12 @@
-from config.config import TRANSACTION_COST,INITIAL_CASH
+from config.config import INITIAL_CASH
 from research.regime import RegimeDetector
 import numpy as np
+
+REGIME_MAP = {
+    "trend": ["ma"],
+    "chop": ["rsi", "zscore"],
+    "high_vol": []
+}
 
 class BacktestEngine:
     def __init__(self,data,strategies,signal_handler, execution,portfolio_factory,regime_detector=None):
@@ -17,48 +23,52 @@ class BacktestEngine:
         self.regime_detector = regime_detector
         
     def run(self):
+
         equity_curve = {name: [] for name in self.strategies}
         turnover_curve = {name: [] for name in self.strategies}
 
         for i in range(len(self.data)):
+
             current_data = self.data.iloc[:i+1]
-            price = current_data['close'].iloc[-1]
+            price = current_data["close"].iloc[-1]
 
             if not np.isfinite(price):
                 continue
 
-            regime = self.regime_detector.detect(current_data) if self.regime_detector else None
+            regime = None
+            if self.regime_detector:
+                regime = self.regime_detector.detect(current_data)
+                if isinstance(regime, str):
+                    regime = regime.lower().strip()
 
             for name, strategy in self.strategies.items():
+
                 portfolio = self.portfolios[name]
 
-                signal = strategy.generate_signal(current_data)
-                signal = np.clip(signal, -1, 1)
+                allowed = REGIME_MAP.get(regime, list(self.strategies.keys()))
 
-                # optional regime scaling
-                risk_multiplier = {
-                    "trend": 1.2,
-                    "chop": 0.6,
-                    "high_vol": 0.4
-                }.get(regime, 1.0)
+                if name in allowed:
+                    signal = strategy.generate_signal(current_data)
+                else:
+                    signal = 0
 
-                signal *= risk_multiplier
-
-                order = self.signal_handler.generate_order(signal, portfolio, price)
+                order = self.signal_handler.generate_order(
+                    signal, portfolio, price, current_data
+                )
 
                 if not np.isfinite(order):
                     order = 0.0
 
-                order = np.clip(order, -1e3, 1e3)
+                max_position = 0.8 * (portfolio.cash + portfolio.position * price) / price
+                target_position = np.clip(portfolio.position + order,
+                                          -max_position,
+                                          max_position)
 
-                equity = portfolio.cash + portfolio.position * price
-                max_position = (0.8 * equity) / price if price != 0 else 0
-
-                target_position = np.clip(portfolio.position + order, -max_position, max_position)
                 order = target_position - portfolio.position
 
-                fill_price, cost = self.execution.execute_order(order, price)
-                portfolio.update(order, fill_price, cost)
+                fill_price, cost_exec = self.execution.execute_order(order, price)
+
+                portfolio.update(order, fill_price, cost_exec)
 
                 equity = portfolio.cash + portfolio.position * price
 
@@ -68,4 +78,3 @@ class BacktestEngine:
                 turnover_curve[name].append(turnover)
 
         return equity_curve, turnover_curve
-    

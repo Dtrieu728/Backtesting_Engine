@@ -1,9 +1,10 @@
 from .base_strategy import BaseStrategy
 import numpy as np
+
 class RSIStrategy(BaseStrategy):
     def __init__(self, params):
         self.window = params["window"]
-        
+
     def generate_signal(self, data):
 
         delta = data["close"].diff()
@@ -17,14 +18,15 @@ class RSIStrategy(BaseStrategy):
         rs = avg_gain / (avg_loss + 1e-9)
         rsi = 100 - (100 / (1 + rs))
 
-        latest_rsi = rsi.iloc[-1]
+        latest = rsi.iloc[-1]
 
-        if np.isnan(latest_rsi):
+        if np.isnan(latest):
             return 0
 
-        if latest_rsi < 30:
-            return 1
-        elif latest_rsi > 70:
-            return -1
+        # continuous signal 
+        if latest < 50:
+            signal = (50 - latest) / 20   
         else:
-            return 0
+            signal = -(latest - 50) / 20  
+
+        return np.clip(signal, -1, 1)

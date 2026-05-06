@@ -3,31 +3,22 @@ import numpy as np
 
 class MovingAverageStrategy(BaseStrategy):
     def __init__(self, params):
-        self.short_window = params["short"]
-        self.long_window = params["long"]
+        self.short = params["short"]
+        self.long = params["long"]
 
     def generate_signal(self, data):
-        if len(data) < self.long_window:
+        close = data["close"]
+
+        if len(close) < self.long:
             return 0.0
 
-        prices = data['close']
+        short_ma = close.rolling(self.short).mean().iloc[-1]
+        long_ma = close.rolling(self.long).mean().iloc[-1]
 
-        short_ma = prices.rolling(self.short_window).mean().iloc[-1]
-        long_ma = prices.rolling(self.long_window).mean().iloc[-1]
-
-        if np.isnan(short_ma) or np.isnan(long_ma) or long_ma == 0:
+        if np.isnan(short_ma) or np.isnan(long_ma):
             return 0.0
 
-        # normalize DIFFERENCE by volatility proxy
-        returns = prices.pct_change().dropna()
-        vol = returns.std()
+        # normalized signal 
+        signal = (short_ma - long_ma) / (long_ma + 1e-9)
 
-        if vol == 0 or np.isnan(vol):
-            return 0.0
-
-        signal = (short_ma - long_ma) / (long_ma * vol)
-
-        # squash into stable range [-1, 1]
-        signal = np.tanh(signal)
-
-        return float(signal)
+        return np.tanh(signal * 10)  # bounded exposure

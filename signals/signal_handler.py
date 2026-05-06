@@ -1,62 +1,49 @@
 import numpy as np
-
 class SignalHandler:
-    def __init__(self, fraction=0.2, max_shares=1e4):
+    def __init__(self, fraction=0.02, adjustment_speed=0.2):
         self.fraction = fraction
-        self.max_shares = max_shares
+        self.adjustment_speed = adjustment_speed
 
-    def generate_order(self, signal, portfolio, price):
+    def generate_order(self, signal, portfolio, price, data=None):
 
-        # 1. Normalize signal
-        if isinstance(signal, str):
-            signal = signal.strip().upper()
-            if signal == "BUY":
-                signal = 1
-            elif signal == "SELL":
-                signal = -1
-            else:
-                signal = 0
-
+        # normalize signal 
         try:
             signal = float(signal)
-        except (TypeError, ValueError):
-            signal = 0.0
-
-        if not np.isfinite(signal):
-            signal = 0.0
-
-        
-        # 2. Compute equity safely
-        
-        equity = portfolio.cash + portfolio.position * price
-
-        if not np.isfinite(equity) or equity <= 0:
+        except:
             return 0.0
 
-        # 3. Volatility estimate (simple proxy)
-        # fallback if no volatility tracking yet
-        vol_proxy = abs(portfolio.position * price) / (equity + 1e-9)
-        vol_proxy = max(vol_proxy, 0.05)  # prevent division blowups
+        signal = np.clip(signal, -1, 1)
 
-        
-        # 4. Risk-scaled position sizing
-        risk_scaled_equity = equity * self.fraction / vol_proxy
+        equity = portfolio.cash + portfolio.position * price
+        if equity <= 0:
+            return 0.0
 
-        target_value = signal * risk_scaled_equity
+        #volatility 
+        if data is not None and len(data) > 20:
+            returns = data['close'].pct_change()
+            vol = returns.rolling(20).std().iloc[-1]
+        else:
+            vol = 0.02
+
+        vol = max(vol, 0.01)
+
+        # position sizing
+        target_value = signal * equity * self.fraction / vol
         target_position = target_value / price
 
-        # 5. Hard caps (safety layer)
+        # cap exposure 
+        max_position_value = 0.5 * equity
         target_position = np.clip(
             target_position,
-            -self.max_shares,
-            self.max_shares
+            -max_position_value / price,
+            max_position_value / price
         )
 
-        # 6. Generate order
-        order = target_position - portfolio.position
+        # smooth trading 
+        order = (target_position - portfolio.position) * self.adjustment_speed
 
-        # 7. Final safety clamp
-        if not np.isfinite(order):
+        # filter small trades 
+        if abs(order) * price < 50:
             return 0.0
 
         return order
