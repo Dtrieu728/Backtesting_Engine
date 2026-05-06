@@ -34,11 +34,11 @@ from utils.visualization import plot_switching_performance
 from config.config import INITIAL_CASH, TRANSACTION_COST
 
 #Load data and initialize components
-# Symbol = input("Ticker:")
+Symbol = input("Ticker:")
 # Start_date = input("Start Date (YYYY-MM-DD):")
 # End_date = input("End Date (YYYY-MM-DD):")
 
-Symbol = "META"
+# Symbol = "MSFT"
 Start_date = "2014-01-01"
 End_date = "2024-01-01"
 
