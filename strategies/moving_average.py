@@ -5,6 +5,7 @@ class MovingAverageStrategy(BaseStrategy):
     def __init__(self, params):
         self.short = params["short"]
         self.long = params["long"]
+        
 
     def generate_signal(self, data):
         close = data["close"]

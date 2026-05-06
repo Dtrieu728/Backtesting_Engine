@@ -1,31 +1,32 @@
-from config.config import INITIAL_CASH
-from research.regime import RegimeDetector
 import numpy as np
+from config.config import INITIAL_CASH
 
 REGIME_MAP = {
-    "trend": ["ma"],
-    "chop": ["rsi", "zscore"],
-    "high_vol": []
+    "trend": "ma",
+    "chop": "zscore",
+    "high_vol": "zscore"   
 }
 
+
 class BacktestEngine:
-    def __init__(self,data,strategies,signal_handler, execution,portfolio_factory,regime_detector=None):
-        self.data =data
+    def __init__(self, data, strategies, signal_handler, execution, portfolio_factory, regime_detector=None):
+        self.data = data
         self.strategies = strategies
         self.signal_handler = signal_handler
         self.execution = execution
-        self.portfolio_factory = portfolio_factory
-        
-        self.portfolios ={
-            name: portfolio_factory()
-            for name in strategies.keys()
-        }
+        self.portfolio = portfolio_factory()  
         self.regime_detector = regime_detector
-        
+        self.prev_regime = None
+        self.regime_buffer = []
+        self.buffer_size = 5
+
     def run(self):
 
-        equity_curve = {name: [] for name in self.strategies}
-        turnover_curve = {name: [] for name in self.strategies}
+        equity_curve = []
+        turnover_curve = []
+        
+        is_single_strat = len(self.strategies) == 1
+        single_strat_name = list(self.strategies.keys())[0] if is_single_strat else None
 
         for i in range(len(self.data)):
 
@@ -34,47 +35,80 @@ class BacktestEngine:
 
             if not np.isfinite(price):
                 continue
+            
 
-            regime = None
-            if self.regime_detector:
-                regime = self.regime_detector.detect(current_data)
-                if isinstance(regime, str):
-                    regime = regime.lower().strip()
 
-            for name, strategy in self.strategies.items():
+            #Detect regime
+            if self.regime_detector and not is_single_strat:
+                raw_regime = self.regime_detector.detect(current_data)
+            else:
+                raw_regime = single_strat_name if is_single_strat else "chop"
+            self.regime_buffer.append(raw_regime)
+            
+            if len(self.regime_buffer) > self.buffer_size:
+                self.regime_buffer.pop(0)
+                
+            if all(r==self.regime_buffer[0] for r in self.regime_buffer):
+                confirmed_regime = self.regime_buffer[0]
+            else:
+                confirmed_regime = self.prev_regime if self.prev_regime else raw_regime
+                
+            if confirmed_regime != self.prev_regime and self.prev_regime is not None:
+                order = -self.portfolio.position
+                if order != 0:
+                    fill_price, cost_exec = self.execution.execute_order(order,price)
+                    self.portfolio.update(order,fill_price,cost_exec)
+                    
+            self.prev_regime = confirmed_regime
 
-                portfolio = self.portfolios[name]
+            #Select strategy
+            if is_single_strat:
+                strategy = self.strategies[single_strat_name]
+            else:
+                strategy_name = REGIME_MAP.get(confirmed_regime,"zscore")
+                strategy = self.strategies.get(strategy_name,self.strategies.get("zscore"))
+                
+            if not strategy:
+                raise ValueError (f"No strategy found for regime {regime} and no default available")
 
-                allowed = REGIME_MAP.get(regime, list(self.strategies.keys()))
+            signal = strategy.generate_signal(current_data)
 
-                if name in allowed:
-                    signal = strategy.generate_signal(current_data)
-                else:
-                    signal = 0
+            #Volatility-based sizing
+            returns = current_data["close"].pct_change()
+            vol = returns.rolling(20).std().iloc[-1]
 
-                order = self.signal_handler.generate_order(
-                    signal, portfolio, price, current_data
-                )
+            target_vol = 0.02  # risk target
+            vol_scalar = target_vol / (vol + 1e-9)
 
-                if not np.isfinite(order):
-                    order = 0.0
+            equity = self.portfolio.cash + self.portfolio.position * price
+            max_position = vol_scalar * equity / price
 
-                max_position = 0.8 * (portfolio.cash + portfolio.position * price) / price
-                target_position = np.clip(portfolio.position + order,
-                                          -max_position,
-                                          max_position)
+            #Signal to order
+            order = self.signal_handler.generate_order(
+                signal, self.portfolio, price, current_data
+            )
 
-                order = target_position - portfolio.position
+            if not np.isfinite(order):
+                order = 0.0
 
-                fill_price, cost_exec = self.execution.execute_order(order, price)
+            target_position = np.clip(
+                self.portfolio.position + order,
+                -max_position,
+                max_position
+            )
 
-                portfolio.update(order, fill_price, cost_exec)
+            order = target_position - self.portfolio.position
 
-                equity = portfolio.cash + portfolio.position * price
+            #Execution
+            fill_price, cost_exec = self.execution.execute_order(order, price)
+            self.portfolio.update(order, fill_price, cost_exec)
 
-                turnover = abs(order) * price / (equity + 1e-9)
 
-                equity_curve[name].append(equity)
-                turnover_curve[name].append(turnover)
+            #Metrics
+            equity = self.portfolio.cash + self.portfolio.position * price
+            turnover = abs(order) * price / (equity + 1e-9)
+
+            equity_curve.append(equity)
+            turnover_curve.append(turnover)
 
         return equity_curve, turnover_curve

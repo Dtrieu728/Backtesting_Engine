@@ -4,27 +4,27 @@ class RegimeDetector:
         self.vol_window = vol_window
 
     def detect(self, data):
+        if len(data) < self.vol_window + 1:
+            return "chop"
+
         close = data["close"]
         returns = close.pct_change()
 
         # Volatility
         vol = returns.rolling(self.vol_window).std().iloc[-1]
         avg_abs_ret = returns.abs().rolling(self.vol_window).mean().iloc[-1]
-        vol_norm = vol / (avg_abs_ret + 1e-9)
-
-        # Trend (momentum-based, more robust)
-        trend_strength = close.pct_change(20).iloc[-1]
-
-        if np.isnan(vol) or np.isnan(trend_strength):
+        
+        # Avoid division by zero and check for NaNs
+        if np.isnan(vol) or avg_abs_ret < 1e-9:
             return "chop"
+            
+        vol_norm = vol / avg_abs_ret
+        trend_strength = close.pct_change(self.vol_window).iloc[-1]
 
-        # Regime logic
-        if abs(trend_strength) > 0.02:
-            if vol_norm > 1.5:
-                return "trend_high_vol"
-            else:
-                return "trend"
-
+        # Logic
+        if abs(trend_strength) > 0.02: 
+            return "trend"
+        
         if vol_norm > 2.0:
             return "high_vol"
 

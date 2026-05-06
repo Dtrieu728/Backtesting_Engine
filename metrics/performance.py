@@ -66,50 +66,53 @@ def max_drawdown_curve(curve):
     return np.min(dd)
 
 
-def window_sharpes(results, strategy_name):
-    import numpy as np
-
+def window_sharpes(results, strategy_name=None):
     sharpes = []
-
     for r in results:
-        equity_dict = r["equity"]
-
-        if strategy_name not in equity_dict:
-            sharpes.append(0)
-            continue
-
-        equity = np.asarray(equity_dict[strategy_name], dtype=float)
-
+        equity = r["equity"]
+        
+        if isinstance(equity, dict):
+            if strategy_name not in equity:
+                sharpes.append(0.0)
+                continue
+            equity = equity[strategy_name]
+        
+        equity = np.asarray(equity, dtype=float)
         if len(equity) < 2:
-            sharpes.append(0)
+            sharpes.append(0.0)
             continue
 
         returns = np.diff(equity) / (equity[:-1] + 1e-9)
-
-        sharpe = np.mean(returns) / (np.std(returns) + 1e-9)
-
+        vol = np.std(returns)
+        sharpe = (np.mean(returns) / (vol + 1e-9)) * np.sqrt(252) if vol > 0 else 0.0
         sharpes.append(sharpe)
-
     return sharpes
 
+
 def overall_performance(results):
-    full_equity = []
 
+    all_returns = []
+    
     for r in results:
-        strat = r["strategy"]
-        eq = np.array(r["equity"][strat])
+        equity = np.asarray(r["equity"], dtype=float)
+        if len(equity) < 2:
+            continue
+        
+        window_returns = np.diff(equity) / (equity[:-1] + 1e-9)
+        all_returns.extend(window_returns)
 
-        eq = eq / eq[0]  # normalize
+    all_returns = np.array(all_returns)
+    if len(all_returns) == 0:
+        return {"sharpe": 0, "max_dd": 0, "final_return": 0}
 
-        if len(full_equity) == 0:
-            full_equity.extend(eq)
-        else:
-            full_equity.extend(eq * full_equity[-1])
-
-    returns = np.diff(full_equity) / (np.array(full_equity[:-1]) + 1e-9)
+    full_equity = np.cumprod(1 + all_returns)
+    
+    mean_ret = np.mean(all_returns)
+    std_ret = np.std(all_returns)
+    sharpe = (mean_ret / (std_ret + 1e-9)) * np.sqrt(252)
 
     return {
-        "sharpe": sharpe(returns),
+        "sharpe": sharpe,
         "max_dd": max_drawdown_curve(full_equity),
-        "final_return": full_equity[-1] - 1
+        "total_return": full_equity[-1] - 1
     }

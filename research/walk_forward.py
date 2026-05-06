@@ -44,14 +44,15 @@ class WalkForwardOptimizer:
                     strategies={name: strategy},
                     signal_handler=self.signal_handler,
                     execution=self.execution,
-                    portfolio_factory=self.portfolio_factory
+                    portfolio_factory=self.portfolio_factory,
+                    regime_detector = None
                 )
 
-                equity, _ = engine.run()
+                equity_curve, _ = engine.run()
 
-                returns = np.diff(equity[name]) / (np.array(equity[name][:-1]) + 1e-8)
+                returns = np.diff(equity_curve) / (np.array(equity_curve[:-1]) + 1e-8)
 
-                sharpe = sharpe = (np.mean(returns) / (np.std(returns) + 1e-9)) * np.sqrt(252)
+                sharpe = (np.mean(returns) / (np.std(returns) + 1e-9)) * np.sqrt(252)
 
                 print(f"   Params: {params} → Sharpe: {sharpe:.4f}")
 
@@ -65,42 +66,36 @@ class WalkForwardOptimizer:
 
         return strategy_scores
 
-    def test(self, test_data, strategy_scores, base_strategies):
-        equity_all = {}
-        turnover_all = {}
-
+    def test(self, test_data, strategy_scores, base_strategies,regime_detector):
+        optimized_strategies = {}
         for name, (_, params) in strategy_scores.items():
-            strategy = base_strategies[name](params=params)
+            optimized_strategies[name] = base_strategies[name](params=params)
 
-            engine = self.engine_class(
-                data=test_data,
-                strategies={name: strategy},
-                signal_handler=self.signal_handler,
-                execution=self.execution,
-                portfolio_factory=self.portfolio_factory
-            )
+        engine = self.engine_class(
+            data=test_data,
+            strategies=optimized_strategies,
+            signal_handler=self.signal_handler,
+            execution=self.execution,
+            portfolio_factory=self.portfolio_factory,
+            regime_detector=regime_detector
+        )
 
-            equity, turnover = engine.run()
-
-            equity_all[name] = equity[name]
-            turnover_all[name] = turnover[name]
-
-        return equity_all, turnover_all
+        return engine.run()
 
     def run(self, base_strategies, regime_detector=None):
         results = []
 
         for i, (train, test) in enumerate(self.split()):
             best_params = self.optimize(train, base_strategies)
-            equity, turnover = self.test(test, best_params, base_strategies)
+            equity, turnover = self.test(test, best_params, base_strategies,regime_detector)
 
-            regime = regime_detector.detect(test) if regime_detector else None
+            final_regime = regime_detector.detect(test) if regime_detector else None
 
             results.append({
                 "equity": equity,
                 "turnover": turnover,
                 "params": best_params,
-                "regime": regime
+                "regime": final_regime
             })
 
         return results
