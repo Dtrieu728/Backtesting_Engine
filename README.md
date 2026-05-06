@@ -25,8 +25,8 @@ This is an event-driven backtesting engine for trading strategies. It simulates 
 - Implement custom portfolio management in `Portfolio`
 - Add realistic execution simulation in `ExecutionHandler` 
 
-## Work-in progress features
+<!-- ## Work-in progress features
 - [x] Walk forward Testing
 - [ ] Better Benchmark system
   - [ ] Better Signal Handling (High_vol getting drowned out)
-- [ ] Improve plots
+- [ ] Improve plots -->
