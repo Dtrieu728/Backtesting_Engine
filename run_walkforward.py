@@ -28,7 +28,7 @@ from metrics.performance import max_drawdown_curve
 from benchmark.buy_hold import BuyAndHoldBenchmark
 
 #Utils
-from utils.visualization import plot_switching_performance
+from utils.visualization import plot_switching_performance,plot_equity_with_regimes,plot_portfolio_value
 
 #config
 from config.config import INITIAL_CASH, TRANSACTION_COST
@@ -97,7 +97,17 @@ for strat in base_strategies.keys():
     sharpes = [float(x) for x in sharpes]
 
     print("Window Sharpe:", sharpes)
-plot_switching_performance(results)
+    
+#Benchmark (Buy and Hold)
+bh = BuyAndHoldBenchmark(Symbol)
+bh_equity = bh.run(data)
+
+# plot_switching_performance(results,bh_equity)
+plot_equity_with_regimes(results)
+# plot_portfolio_value(results)
+
+
+
 
 # Metrics
 regime_returns = defaultdict(list)

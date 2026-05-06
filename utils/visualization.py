@@ -26,42 +26,41 @@ def build_full_equity(results):
 
     return np.array(full_curve)
 
-def plot_equity_curves(results, strategies):
-    plt.figure(figsize=(12,6))
-
-    for strat in strategies:
-        curve = build_full_equity(results, strat)
-        plt.plot(curve, label=strat)
-
-    plt.title("Strategy Comparison (Walk-Forward)")
-    plt.xlabel("Time")
-    plt.ylabel("Equity")
-    plt.legend()
-    plt.grid(True)
-
-    plt.savefig(os.path.join(current_dir, "plots", "comparison.png"))
-    plt.show()
     
-def plot_switching_performance(results):
+def plot_switching_performance(results, bh_results):
     os.makedirs(os.path.join(current_dir, "plots"), exist_ok=True)
 
     curve = build_full_equity(results)
-    
-    if len(curve) == 0:
-        print("Error: Equity curve is empty. Check if engine is running correctly.")
+    bh_curve = np.array(bh_results, dtype=float)
+    bh_curve = bh_curve / bh_curve[0]
+
+    if len(curve) == 0 or len(bh_curve) == 0:
+        print("Error: Equity curve is empty.")
         return
+
+    # Normalize strategy
+    curve = curve / curve[0]
+
+    # Align lengths
+    min_len = min(len(curve), len(bh_curve))
+    curve = curve[:min_len]
+    bh_curve = bh_curve[:min_len]
 
     plt.figure(figsize=(12,6))
     plt.plot(curve, linewidth=2, color='#2ecc71', label='Regime Switching Model')
+    plt.plot(bh_curve, linewidth=2, color="#ff0000", label='Buy and Hold')
 
-    plt.title("Combined Regime-Switching Equity Curve")
-    plt.xlabel("Total Trading Days")
-    plt.ylabel("Normalized Portfolio Value")
+    plt.yscale("linear")
+    plt.grid(True)
+
+    plt.title("Regime Switching vs Buy & Hold")
+    plt.xlabel("Trading Days")
+    plt.ylabel("Portfolio Value")
     plt.legend()
-    plt.grid(True, alpha=0.3)
 
     plt.savefig(os.path.join(current_dir, "plots", "switching_equity.png"))
     plt.show()
+
     
 def performance_summary(results, strategy_name):
     curve = build_full_equity(results, strategy_name)
@@ -78,8 +77,8 @@ def performance_summary(results, strategy_name):
         "final_value": curve[-1]
     }
 
-def plot_portfolio_value(results, strategy_name, initial_cash=100000):
-    curve = build_full_equity(results, strategy_name)
+def plot_portfolio_value(results, initial_cash=100000):
+    curve = build_full_equity(results)
 
     # normalize to starting capital
     curve = curve / curve[0] * initial_cash
@@ -87,24 +86,23 @@ def plot_portfolio_value(results, strategy_name, initial_cash=100000):
     plt.figure(figsize=(12,6))
     plt.plot(curve, linewidth=2)
 
-    plt.title(f"{strategy_name.upper()} Portfolio Value")
+    plt.title("Portfolio Value")
     plt.xlabel("Time")
     plt.ylabel("Portfolio Value ($)")
     plt.grid(True)
 
-    plt.savefig(os.path.join(current_dir, "plots", f"{strategy_name}_portfolio.png"))
+    plt.savefig(os.path.join(current_dir, "plots", "portfolio.png"))
     plt.show()
     
 def plot_equity_with_regimes(results):
     full_curve = build_full_equity(results)
     plt.figure(figsize=(14, 7))
     
-    # Plot the line
     plt.plot(full_curve, color='black', lw=1.5)
     
-    # Overlay regime colors
     curr_idx = 0
     colors = {"trend": "green", "chop": "yellow", "high_vol": "red"}
+   
     
     for r in results:
         window_len = len(r["equity"])
@@ -114,4 +112,9 @@ def plot_equity_with_regimes(results):
         curr_idx += window_len
 
     plt.title("Walk-Forward Performance with Regime Overlays")
+    plt.xlabel("Time")
+    plt.ylabel("Portfolio Value")
+    plt.legend(colors)
+    plt.savefig(os.path.join(current_dir, "plots", "plot_equity_with_regimes.png"))
     plt.show()
+    
