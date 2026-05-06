@@ -18,7 +18,7 @@ class MovingAverageStrategy(BaseStrategy):
         if np.isnan(short_ma) or np.isnan(long_ma):
             return 0.0
 
-        # normalized signal 
+        # normalized signa
         signal = (short_ma - long_ma) / (long_ma + 1e-9)
 
         return np.tanh(signal * 10)  # bounded exposure

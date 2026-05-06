@@ -9,13 +9,13 @@ class RSIStrategy(BaseStrategy):
 
         delta = data["close"].diff()
 
-        gain = delta.clip(lower=0)
-        loss = -delta.clip(upper=0)
+        gain = (delta.where(delta>0,0)).rolling(self.window).mean()
+        loss = (-delta.where(delta < 0,0)).rolling(self.window).mean()
 
         avg_gain = gain.ewm(alpha=1/self.window, adjust=False).mean()
         avg_loss = loss.ewm(alpha=1/self.window, adjust=False).mean()
 
-        rs = avg_gain / (avg_loss + 1e-9)
+        rs = avg_gain / (avg_loss)
         rsi = 100 - (100 / (1 + rs))
 
         latest = rsi.iloc[-1]

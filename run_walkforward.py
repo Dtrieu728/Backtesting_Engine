@@ -38,9 +38,9 @@ from config.config import INITIAL_CASH, TRANSACTION_COST
 # Start_date = input("Start Date (YYYY-MM-DD):")
 # End_date = input("End Date (YYYY-MM-DD):")
 
-Symbol = "MSFT"
+Symbol = "META"
 Start_date = "2014-01-01"
-End_date = "2024-01-01"
+End_date = "2019-01-01"
 
 csv_asset = load_market_data(Symbol,Start_date, End_date)
 data_handler = DataHandler(f"data/raw/{Symbol}.csv")
@@ -50,15 +50,13 @@ data = data_handler.get_data()
 strategies_grid = {
     "ma":[
         {"short":5, "long":20},
-        {"short":10, "long":50},
+        {"short":50, "long":100},
     ],
     "rsi":[
         {"window":14},
-        {"window":21}
     ],
     "zscore":[
         {"window":20},
-        {"window":50}
     ]
 }
 
