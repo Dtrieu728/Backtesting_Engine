@@ -50,10 +50,13 @@ data = data_handler.get_data()
 strategies_grid = {
     "ma":[
         {"short":5, "long":20},
-        {"short":20, "long":50},
+        {"short":10, "long":30},
+        {"short":20, "long":50}
     ],
     "zscore":[
+        {"window":10},
         {"window":20},
+        {"window":40}
     ]
 }
 
@@ -109,22 +112,30 @@ for res in results:
         regime_equity[regime].extend(equity)
 
 # Evaluation
-print("\n=== REGIME PERFORMANCE (SWITCHING MODEL) ===")
+print("\n" + "="*55)
+print(f"{'REGIME':<12} | {'SHARPE':<8} | {'MAX DD':<8} | {'TRADES':<6}")
+print("-"*55)
+
 for r in ["trend", "chop", "high_vol"]:
-    rets = regime_returns[r]
-    eq = regime_equity[r]
+    rets = regime_returns.get(r, [])
+    eq = regime_equity.get(r, [])
+    
+    # Calculate Sharpe
+    sharpe = 0.0
+    if len(rets) > 1: # Need at least 2 points for Std Dev
+        std = np.std(rets)
+        if std > 0:
+            sharpe = (np.mean(rets) / std) * np.sqrt(252)
 
-    if len(rets) > 0:
-        # Annualized Sharpe (assuming daily data)
-        sharpe = (np.mean(rets) / (np.std(rets) + 1e-9)) * np.sqrt(252)
-    else:
-        sharpe = 0.0
+    # Calculate Max Drawdown
+    dd = 0.0
+    if len(eq) > 1:
+        # Assuming eq is a price/equity series starting at 1.0
+        rolling_max = np.maximum.accumulate(eq)
+        drawdowns = (eq - rolling_max) / rolling_max
+        dd = np.min(drawdowns)
 
-    if len(eq) > 0:
-        dd = max_drawdown_curve(eq)
-    else:
-        dd = 0.0
-
-    print(f"Regime: {r:10} | Sharpe: {sharpe:6.3f} | MaxDD: {dd:6.3f}")
+    print(f"{r.capitalize():<12} | {sharpe:8.3f} | {dd:8.3f} | {len(rets):<6}")
+print("="*55)
         
 

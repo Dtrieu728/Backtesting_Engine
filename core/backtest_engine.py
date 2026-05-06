@@ -4,7 +4,7 @@ from config.config import INITIAL_CASH
 REGIME_MAP = {
     "trend": "ma",
     "chop": "zscore",
-    "high_vol": "zscore"   
+    "high_vol": "ma"   
 }
 
 
@@ -74,14 +74,14 @@ class BacktestEngine:
             signal = strategy.generate_signal(current_data)
 
             #Volatility-based sizing
-            returns = current_data["close"].pct_change()
-            vol = returns.rolling(20).std().iloc[-1]
+            # returns = current_data["close"].pct_change()
+            # vol = returns.rolling(20).std().iloc[-1]
 
-            target_vol = 0.02  # risk target
-            vol_scalar = target_vol / (vol + 1e-9)
+            # target_vol = 0.02  # risk target
+            # vol_scalar = target_vol / (vol + 1e-9)
 
-            equity = self.portfolio.cash + self.portfolio.position * price
-            max_position = vol_scalar * equity / price
+            # equity = self.portfolio.cash + self.portfolio.position * price
+            # max_position = vol_scalar * equity / price
 
             #Signal to order
             order = self.signal_handler.generate_order(
@@ -91,13 +91,13 @@ class BacktestEngine:
             if not np.isfinite(order):
                 order = 0.0
 
-            target_position = np.clip(
-                self.portfolio.position + order,
-                -max_position,
-                max_position
-            )
+            # target_position = np.clip(
+            #     self.portfolio.position + order,
+            #     -max_position,
+            #     max_position
+            # )
 
-            order = target_position - self.portfolio.position
+            # order = target_position - self.portfolio.position
 
             #Execution
             fill_price, cost_exec = self.execution.execute_order(order, price)
