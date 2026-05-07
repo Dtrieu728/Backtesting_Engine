@@ -140,7 +140,6 @@ for r in ["trend", "chop", "high_vol"]:
     # Calculate Max Drawdown
     dd = 0.0
     if len(eq) > 1:
-        # Assuming eq is a price/equity series starting at 1.0
         rolling_max = np.maximum.accumulate(eq)
         drawdowns = (eq - rolling_max) / rolling_max
         dd = np.min(drawdowns)
