@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 import numpy as np
 import pandas as pd
 import os 
@@ -96,25 +97,45 @@ def plot_portfolio_value(results, initial_cash=100000):
     
 def plot_equity_with_regimes(results):
     full_curve = build_full_equity(results)
+
     plt.figure(figsize=(14, 7))
-    
-    plt.plot(full_curve, color='black', lw=1.5)
-    
+
+    plt.plot(full_curve, color='black', lw=1.5, label="Equity Curve")
+
     curr_idx = 0
-    colors = {"trend": "green", "chop": "yellow", "high_vol": "red"}
-   
-    
+    colors = {
+        "trend": "green",
+        "chop": "yellow",
+        "high_vol": "red"
+    }
+
     for r in results:
         window_len = len(r["equity"])
         regime = r.get("regime", "chop")
-        plt.axvspan(curr_idx, curr_idx + window_len, 
-                    color=colors.get(regime, "gray"), alpha=0.2)
+
+        plt.axvspan(
+            curr_idx,
+            curr_idx + window_len,
+            color=colors.get(regime, "gray"),
+            alpha=0.2
+        )
+
         curr_idx += window_len
+
+    legend_elements = [
+        Patch(facecolor='green', alpha=0.2, label='Trend'),
+        Patch(facecolor='yellow', alpha=0.2, label='Chop'),
+        Patch(facecolor='red', alpha=0.2, label='High Volatility')
+    ]
+
+    plt.legend(handles=legend_elements)
 
     plt.title("Walk-Forward Performance with Regime Overlays")
     plt.xlabel("Time")
     plt.ylabel("Portfolio Value")
-    plt.legend(colors)
-    plt.savefig(os.path.join(current_dir, "plots", "plot_equity_with_regimes.png"))
+
+    plt.savefig(
+        os.path.join(current_dir, "plots", "plot_equity_with_regimes.png")
+    )
+
     plt.show()
-    
