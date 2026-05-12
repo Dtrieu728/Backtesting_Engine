@@ -1,32 +1,62 @@
+import datetime
 import pandas as pd
 import yfinance as yf
-import os
+import os,os.path
+from abc import ABCMeta, abstractmethod
+from core.eventDriven import MarketEvent
 
-curr_dir = os.path.dirname(os.path.abspath(__file__))
-class DataHandler:
-    def __init__(self,file_path):
-        self.data = pd.read_csv(
-            file_path,
-            index_col=0,
-            parse_dates=True,
-            date_format='%Y-%m-%d')
-        
-        self.data.columns=self.data.columns.str.strip().str.lower()
-        
-        self.data = self.data.apply(pd.to_numeric, errors='coerce')
-        
-        self.data = self.data.dropna()
-        
-    def get_data(self):
-        return self.data
+class DataHandler(object):
+    __metaclass__ = ABCMeta
     
-    def get_latest_bar(self,symbol,time):
-        return self.data.loc[:time].iloc[-1]
+    @abstractmethod
     
-    
+    def get_latest_bars(self,symbol,N=1):
+        """Returns the last N bars from the latest_symbol list, or fewer if less bars are available
 
-def load_market_data(symbol, start_date, end_date):
-    data = yf.download(symbol, start=start_date, end=end_date)
-    data.to_csv(os.path.join(curr_dir,"../raw",f"{symbol}.csv"))
+        Args:
+            symbol (_type_): Ticker Symbol
+            N (int, optional): Number of Bars. Defaults to 1.
+
+        Raises:
+            NotImplementedError: _description_
+        """
+        raise NotImplementedError("Should implement get_latest_bars()")
     
+    @abstractmethod
+    def update_bars(self):
+        """
+        Pushes the latest bar to the latest symbol structure for all symbols in the symbol list
+        """
+        raise NotImplementedError("Should implement update_bars()")
+
         
+class HistoricCSVDataHandler(DataHandler):
+    """HistoricCSVDataHandler is designed to rea CSV files for each requested symbol from disk and provide an interface
+    to obtain the "latest" bar in a manner identical to trading interface
+    """
+    
+    def __init__(self, events, csv_dir, symbol_list):
+        """Initialises the historic data handler by requesting the location of the CSV files and a list of symbols
+        
+        It will be assumed that all files are of the form 'symbol.csv', where symbol is a string in the list
+
+        Args:
+            events (_type_): The Event queue
+            csv_dir (_type_): Absolute directory path to CSV files
+            symbol_list (_type_): A list of symbol strings
+        """
+        self.events = events
+        self.csv_dir = csv_dir
+        self.symbol_list = symbol_list
+        self.symbol_data = {}
+        self.latest_symbol_data={}
+        self.continue_backtest = True
+        
+        self._open_convert_csv_files()
+        
+    def _open_convert_csv_files(self):
+        """
+        Opens the CSv files from the data directory, converting them into pandas Dataframe within a symbol dictionary
+        
+        For this handler it will assumed that the data is taken from Yahoo. Thus its format will be respected
+        """
