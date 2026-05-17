@@ -60,3 +60,65 @@ class HistoricCSVDataHandler(DataHandler):
         
         For this handler it will assumed that the data is taken from Yahoo. Thus its format will be respected
         """
+        comb_index = None
+        for s in self.symbol_list:
+            self.symbol_data[s] = pd.read_csv(
+                os.path.join(self.csv_dir, '%s.csv' % s), header=0, index_col=0,
+                parse_dates=True, names=['datetime','open','high','low','close','adj_close','volume']
+            )
+            self.symbol_data[s].sort_index(inplace=True)
+            
+            if comb_index is None:
+                comb_index = self.symbol_data[s].index
+            else:
+                comb_index.union(self.symbol_data[s].index)
+            self.latest_symbol_data[s] = []
+            for s in self.symbol_list:
+                self.symbol_data[s] = self.symbol_data[s].reindex(index=comb_index, method='pad')
+                self.symbol_data[s]["returns"] = self.symbol_data[s]["returns"] = self.symbol_data[s]["adj_close"].pct_change().dropna()
+                self.symbol_data[s] = self.symbol_data[s].iterrows()
+            
+            for s in self.symbol_list:
+                self.symbol_data[s] = self.symbol_data[s].reindex(index=comb_index, method='pad').iterrows()
+    
+    def _get_new_bar(self, symbol):
+        """Generator that returns the latest bar in the CSV file
+
+        Args:
+            symbol (_type_): _description_
+
+        Yields:
+            _type_: _description_
+        """
+        
+        for b in self.symbol_data[symbol]:
+            yield tuple([symbol, datetime.datetime.strptime(b[0], '%Y-%m-%d %H:%M:%S'), b[1][0], b[1][1], b[1][2], b[1][3], b[1][4], b[1][5]])
+            
+    def get_latest_bars(self, symbol, N=1):
+        """Returns the last N bars from the latest_symbol list, or fewer if less bars are available
+
+        Args:
+            symbol (_type_): _description_
+            N (int, optional): _description_. Defaults to 1.
+
+        Returns:
+            _type_: _description_
+        """
+        try:
+            bars_list = self.latest_symbol_data[symbol]
+        except KeyError:
+            print("That symbol is not available in the historical data set.")
+        else:
+            return bars_list[-N:]
+    def update_bars(self):
+        """Pushes the latest bar to the latest symbol structure for all symbols in the symbol list
+        """
+        for s in self.symbol_list:
+            try:
+                bar = self._get_new_bar(s).__next__()
+            except StopIteration:
+                self.continue_backtest = False
+            else:
+                if bar is not None:
+                    self.latest_symbol_data[s].append(bar)
+        self.events.put(MarketEvent())

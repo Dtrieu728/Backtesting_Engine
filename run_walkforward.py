@@ -20,9 +20,9 @@ from research.regime import RegimeDetector
 from research.walk_forward import WalkForwardOptimizer
 
 # Metrics
-from metrics.performance import window_sharpes
+from metrics.OldMetrics.performancev1 import window_sharpes
 from metrics.results_tracker import ResultsTracker
-from metrics.performance import max_drawdown_curve
+from metrics.OldMetrics.performancev1 import max_drawdown_curve
 
 #Benchmark
 from benchmark.buy_hold import BuyAndHoldBenchmark

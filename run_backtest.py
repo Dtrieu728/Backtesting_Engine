@@ -6,7 +6,7 @@ from signals.signal_handler import SignalHandler
 from execution.execution_handler import ExecutionHandler
 from portfolio.portfolio import Portfolio
 from core.backtest_engine import BacktestEngine
-from metrics.performance import *
+from metrics.OldMetrics.performancev1 import *
 from metrics.results_tracker import ResultsTracker
 from config.config import *
 from utils.visualization import *
