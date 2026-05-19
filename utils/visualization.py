@@ -110,7 +110,7 @@ def plot_portfolio_value(results, initial_cash=100000):
 
     os.makedirs(os.path.join(current_dir, "plots"), exist_ok=True)
     plt.savefig(os.path.join(current_dir, "plots", "portfolio.png"))
-    plt.show()
+    plt.close()
     
 def plot_equity_with_regimes(results):
     if not _matplotlib_available():
@@ -158,7 +158,7 @@ def plot_equity_with_regimes(results):
         os.path.join(current_dir, "plots", "plot_equity_with_regimes.png")
     )
 
-    plt.show()
+    plt.close()
 
 
 def plot_equity_curves(curves, title="Equity Curves", filename="equity_curves.png"):
@@ -189,4 +189,4 @@ def plot_equity_curves(curves, title="Equity Curves", filename="equity_curves.pn
 
     os.makedirs(os.path.join(current_dir, "plots"), exist_ok=True)
     plt.savefig(os.path.join(current_dir, "plots", filename))
-    plt.show()
+    plt.close()
