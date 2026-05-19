@@ -1,13 +1,12 @@
 import datetime
 import numpy as np 
 import pandas as pd
-import Queue
 
 from abc import ABCMeta, abstractmethod
 from math import floor
 
-from eventDriven import FillEvent, OrderEvent
-from performance import create_sharpe_ratio, create_drawdowns
+from core.eventDriven import FillEvent, OrderEvent
+from metrics.performance import create_sharpe_ratio, create_drawdowns
 
 class Portfolio(object):
     """
@@ -170,7 +169,9 @@ class NaivePortfolio(Portfolio):
 
         symbol = signal.symbol
         direction = signal.signal_type
-        strength = signal.strength
+        strength = getattr(signal, 'strength', None)
+        if strength is None:
+            strength = getattr(signal, 'quantity', 1)
 
         mkt_quantity = floor(100 * strength)
         cur_quantity = self.current_positions[symbol]
@@ -211,13 +212,28 @@ class NaivePortfolio(Portfolio):
         """
         Creates a list of summary statistics for the portfolio.
         """
-        total_return = self.equity_curve['equity_curve'][-1]
+        if self.equity_curve.empty:
+            return [
+                ("Total Return", "0.00%"),
+                ("Sharpe Ratio", "0.00"),
+                ("Max Drawdown", "0.00%"),
+                ("Max Drawdown Duration", "0"),
+            ]
+        total_return = self.equity_curve['equity_curve'].iloc[-1]
         returns = self.equity_curve['returns']
         pnl = self.equity_curve['equity_curve']
         sharpe_ratio = create_sharpe_ratio(returns)
         
-        max_dd, max_duration = create_drawdowns(pnl)
-        
+        dd_series, duration_series = create_drawdowns(pnl)
+        try:
+            max_dd = float(dd_series.max())
+        except Exception:
+            max_dd = 0.0
+        try:
+            max_duration = int(duration_series.max())
+        except Exception:
+            max_duration = 0
+
         stats = [("Total Return", "%0.2f%%" % ((total_return - 1.0) * 100.0)),
                  ("Sharpe Ratio", "%0.2f" % sharpe_ratio),
                  ("Max Drawdown", "%0.2f%%" % (max_dd * 100.0)),

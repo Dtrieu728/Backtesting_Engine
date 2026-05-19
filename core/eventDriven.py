@@ -24,7 +24,7 @@ class SignalEvent(Event):
 
 
 class OrderEvent(Event):
-    def __init__(self, symbol, order_type,quantity, directon):
+    def __init__(self, symbol, order_type, quantity, direction):
         """_summary_
 
         Args:
@@ -38,7 +38,7 @@ class OrderEvent(Event):
         self.symbol = symbol
         self.order_type = order_type
         self.quantity = quantity
-        self.direction = directon
+        self.direction = direction
         
     def print_order(self):
         """
@@ -58,10 +58,10 @@ class FillEvent(Event):
             quantity (_type_): The filled quantity 
             direction (_type_): The direction of fill (Buy or Sell)
             fill_cost (_type_): _description_
-            comission (_type_, optional): optional commission (Interactive Broker)
+            commission (_type_, optional): optional commission (Interactive Broker)
         """
         
-        self.type ='FILL'
+        self.type = 'FILL'
         self.timeindex = timeindex
         self.symbol = symbol
         self.exchange = exchange
@@ -69,9 +69,9 @@ class FillEvent(Event):
         self.direction = direction
         self.fill_cost = fill_cost
         self.commission = commission
-        
-        # Calc. Commission
-        if commision is None:
+
+        # Calc. Commission if not provided
+        if self.commission is None:
             self.commission = self.calculate_ib_commission()
         else:
             self.commission = commission

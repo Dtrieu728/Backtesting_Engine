@@ -1,8 +1,7 @@
 import datetime
-import Queue
 
 from abc import ABCMeta, abstractmethod
-from eventDriven import FillEvent, OrderEvent
+from core.eventDriven import FillEvent, OrderEvent
 
 
 class ExecutionHandler(object):
@@ -62,6 +61,7 @@ class SimulatedExecutionHandler(ExecutionHandler):
         event - Contains an Event object with order information.
         """
         if event.type == 'ORDER':
+            # Use a default fill_cost of 0.0 for simulated fills
             fill_event = FillEvent(datetime.datetime.utcnow(), event.symbol,
-                                   'ARCA', event.quantity, event.direction, None)
+                                   'ARCA', event.quantity, event.direction, 0.0)
             self.events.put(fill_event)

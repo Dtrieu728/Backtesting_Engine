@@ -1,6 +1,9 @@
 import datetime
 import pandas as pd
-import yfinance as yf
+try:
+    import yfinance as yf
+except Exception:
+    yf = None
 import os,os.path
 from abc import ABCMeta, abstractmethod
 from core.eventDriven import MarketEvent
@@ -61,25 +64,46 @@ class HistoricCSVDataHandler(DataHandler):
         For this handler it will assumed that the data is taken from Yahoo. Thus its format will be respected
         """
         comb_index = None
+        # Read each CSV and build combined index
         for s in self.symbol_list:
-            self.symbol_data[s] = pd.read_csv(
-                os.path.join(self.csv_dir, '%s.csv' % s), header=0, index_col=0,
-                parse_dates=True, names=['datetime','open','high','low','close','adj_close','volume']
-            )
+            csv_path = os.path.join(self.csv_dir, '%s.csv' % s)
+            try:
+                self.symbol_data[s] = pd.read_csv(
+                    csv_path, header=0, index_col=0,
+                    parse_dates=True, names=['datetime','open','high','low','close','adj_close','volume']
+                )
+            except Exception:
+                # Fallback for files with extra header rows (repo CSVs)
+                self.symbol_data[s] = pd.read_csv(
+                    csv_path, header=None, names=['datetime','open','high','low','close','adj_close','volume'],
+                    skiprows=3, index_col=0, parse_dates=True
+                )
             self.symbol_data[s].sort_index(inplace=True)
-            
+
             if comb_index is None:
                 comb_index = self.symbol_data[s].index
             else:
-                comb_index.union(self.symbol_data[s].index)
+                comb_index = comb_index.union(self.symbol_data[s].index)
+
+        # Initialize latest data containers and align dataframes to combined index
+        # Expose a start_date for downstream components
+        if comb_index is not None and len(comb_index) > 0:
+            self.start_date = comb_index[0]
+        else:
+            self.start_date = None
+        for s in self.symbol_list:
             self.latest_symbol_data[s] = []
-            for s in self.symbol_list:
-                self.symbol_data[s] = self.symbol_data[s].reindex(index=comb_index, method='pad')
-                self.symbol_data[s]["returns"] = self.symbol_data[s]["returns"] = self.symbol_data[s]["adj_close"].pct_change().dropna()
-                self.symbol_data[s] = self.symbol_data[s].iterrows()
-            
-            for s in self.symbol_list:
-                self.symbol_data[s] = self.symbol_data[s].reindex(index=comb_index, method='pad').iterrows()
+            self.symbol_data[s] = self.symbol_data[s].reindex(index=comb_index, method='pad')
+            # Ensure adj_close column exists (might be named 'Adj Close' in some files)
+            if 'adj_close' not in self.symbol_data[s].columns and 'Adj Close' in self.symbol_data[s].columns:
+                self.symbol_data[s]['adj_close'] = self.symbol_data[s]['Adj Close']
+            # Compute returns
+            try:
+                self.symbol_data[s]['returns'] = self.symbol_data[s]['adj_close'].pct_change()
+            except Exception:
+                self.symbol_data[s]['returns'] = self.symbol_data[s]['close'].pct_change()
+            # Convert to iterator of rows
+            self.symbol_data[s] = self.symbol_data[s].iterrows()
     
     def _get_new_bar(self, symbol):
         """Generator that returns the latest bar in the CSV file
@@ -92,7 +116,20 @@ class HistoricCSVDataHandler(DataHandler):
         """
         
         for b in self.symbol_data[symbol]:
-            yield tuple([symbol, datetime.datetime.strptime(b[0], '%Y-%m-%d %H:%M:%S'), b[1][0], b[1][1], b[1][2], b[1][3], b[1][4], b[1][5]])
+            idx = b[0]
+            row = b[1]
+            # idx may be a pandas Timestamp already
+            if hasattr(idx, 'to_pydatetime'):
+                dt = idx.to_pydatetime()
+            else:
+                try:
+                    dt = datetime.datetime.strptime(str(idx), '%Y-%m-%d %H:%M:%S')
+                except Exception:
+                    try:
+                        dt = datetime.datetime.strptime(str(idx), '%Y-%m-%d')
+                    except Exception:
+                        dt = None
+            yield tuple([symbol, dt, row.get('open'), row.get('high'), row.get('low'), row.get('close'), row.get('adj_close'), row.get('volume')])
             
     def get_latest_bars(self, symbol, N=1):
         """Returns the last N bars from the latest_symbol list, or fewer if less bars are available

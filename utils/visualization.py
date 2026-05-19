@@ -1,11 +1,23 @@
-import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
+import os
 import numpy as np
 import pandas as pd
-import os 
 
+try:
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
+except ImportError:
+    plt = None
+    Patch = None
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
+
+
+def _matplotlib_available():
+    if plt is None:
+        print("matplotlib is not installed. Install it to enable plotting:")
+        print("    python3 -m pip install matplotlib")
+        return False
+    return True
 
 def build_full_equity(results):
     full_curve = []
@@ -35,6 +47,8 @@ def plot_switching_performance(results, bh_results):
     bh_curve = np.array(bh_results, dtype=float)
     bh_curve = bh_curve / bh_curve[0]
 
+    if not _matplotlib_available():
+        return
     if len(curve) == 0 or len(bh_curve) == 0:
         print("Error: Equity curve is empty.")
         return
@@ -79,6 +93,8 @@ def performance_summary(results, strategy_name):
     }
 
 def plot_portfolio_value(results, initial_cash=100000):
+    if not _matplotlib_available():
+        return
     curve = build_full_equity(results)
 
     # normalize to starting capital
@@ -92,10 +108,13 @@ def plot_portfolio_value(results, initial_cash=100000):
     plt.ylabel("Portfolio Value ($)")
     plt.grid(True)
 
+    os.makedirs(os.path.join(current_dir, "plots"), exist_ok=True)
     plt.savefig(os.path.join(current_dir, "plots", "portfolio.png"))
     plt.show()
     
 def plot_equity_with_regimes(results):
+    if not _matplotlib_available():
+        return
     full_curve = build_full_equity(results)
 
     plt.figure(figsize=(14, 7))
@@ -134,8 +153,40 @@ def plot_equity_with_regimes(results):
     plt.xlabel("Time")
     plt.ylabel("Portfolio Value")
 
+    os.makedirs(os.path.join(current_dir, "plots"), exist_ok=True)
     plt.savefig(
         os.path.join(current_dir, "plots", "plot_equity_with_regimes.png")
     )
 
+    plt.show()
+
+
+def plot_equity_curves(curves, title="Equity Curves", filename="equity_curves.png"):
+    """Plot one or more equity curves and show the chart."""
+    if not _matplotlib_available():
+        return
+    if not curves:
+        print("No equity curves to plot.")
+        return
+
+    plt.figure(figsize=(12, 6))
+    for name, curve in curves.items():
+        if isinstance(curve, pd.Series):
+            values = curve.values
+        else:
+            values = np.asarray(curve, dtype=float)
+
+        if values.size == 0:
+            continue
+
+        plt.plot(values, linewidth=2, label=name)
+
+    plt.title(title)
+    plt.xlabel("Time")
+    plt.ylabel("Equity")
+    plt.grid(True)
+    plt.legend()
+
+    os.makedirs(os.path.join(current_dir, "plots"), exist_ok=True)
+    plt.savefig(os.path.join(current_dir, "plots", filename))
     plt.show()

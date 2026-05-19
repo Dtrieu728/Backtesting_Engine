@@ -1,10 +1,9 @@
 import datetime
 import numpy as np 
 import pandas as pd
-import Queue
 
 from abc import ABCMeta, abstractmethod
-from eventDriven import SignalEvent
+from core.eventDriven import SignalEvent
 
 class Strategy(object):
     __metaclass__ = ABCMeta
@@ -24,8 +23,8 @@ class Strategy(object):
 
 class BuyAndHoldStrategy(Strategy):
     def __init__(self,bars,events):
-        self.symbol_list = self.bars.symbol_list
         self.bars = bars
+        self.symbol_list = self.bars.symbol_list
         self.events = events
         self.bought = self._calculate_initial_bought()
         
@@ -40,6 +39,6 @@ class BuyAndHoldStrategy(Strategy):
                 bars = self.bars.get_latest_bars(s, N=1)
                 if bars is not None and bars != []:
                     if self.bought[s] == False:
-                        signal = SignalEvent(bars[0][0],bars[0][1], 'LONG')
+                        signal = SignalEvent(bars[0][0], bars[0][1], 'LONG', 1)
                         self.events.put(signal)
                         self.bought[s] = True
