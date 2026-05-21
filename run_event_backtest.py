@@ -5,7 +5,7 @@ from data.Processed.data_handler import HistoricCSVDataHandler
 from strategies.strategy import BuyAndHoldStrategy
 from execution.execution import SimulatedExecutionHandler
 from portfolio.portfolio import NaivePortfolio
-from core.eventDriven import MarketEvent, SignalEvent, OrderEvent, FillEvent
+from core.event import MarketEvent, SignalEvent, OrderEvent, FillEvent
 from utils.visualization import plot_equity_curves
 
 
@@ -25,7 +25,7 @@ def main():
 
     # Event loop
     while data.continue_backtest:
-        data.update_bars()
+        data.update_latest_data()
 
         while not events.empty():
             event = events.get()

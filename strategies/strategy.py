@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 from abc import ABCMeta, abstractmethod
-from core.eventDriven import SignalEvent
+from core.event import SignalEvent
 
 class Strategy(object):
     __metaclass__ = ABCMeta
@@ -36,7 +36,7 @@ class BuyAndHoldStrategy(Strategy):
     def calculate_signals(self, event):
         if event.type == 'MARKET':
             for s in self.symbol_list:
-                bars = self.bars.get_latest_bars(s, N=1)
+                bars = self.bars.get_latest_data(s, N=1)
                 if bars is not None and bars != []:
                     if self.bought[s] == False:
                         signal = SignalEvent(bars[0][0], bars[0][1], 'LONG', 1)
