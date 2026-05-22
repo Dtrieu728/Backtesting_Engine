@@ -3,6 +3,7 @@ from queue import Queue
 
 from data.Processed.data_handler import HistoricCSVDataHandler
 from strategies.strategy import BuyAndHoldStrategy
+from strategies.moving_average import MovingAveragesLongShortStrategy
 from execution.execution import SimulatedExecutionHandler
 from portfolio.portfolio import NaivePortfolio
 from core.event import MarketEvent, SignalEvent, OrderEvent, FillEvent
@@ -12,16 +13,25 @@ from utils.visualization import plot_equity_curves
 def main():
     base = os.path.dirname(__file__)
     csv_dir = os.path.join(base, 'data', 'raw')
-    symbols = [f[:-4] for f in os.listdir(csv_dir) if f.endswith('.csv')]
+    
+    user_input = input('Enter the symbols to backtest, separated by commas (e.g. AAPL,GOOG,MSFT): ')
+    symbols = [s.strip().upper() for s in user_input.split(',')]
+    
+    for symbol in symbols:
+        file_path = os.path.join(csv_dir, f'{symbol}.csv')
+        if not os.path.isfile(file_path):
+            raise RuntimeError(f'CSV file for symbol {symbol} not found in {csv_dir}')
+        
     if not symbols:
         raise RuntimeError('No CSV files found in data/raw')
 
     events = Queue()
 
     data = HistoricCSVDataHandler(events, csv_dir, symbols)
-    strategy = BuyAndHoldStrategy(data, events)
+    # strategy = BuyAndHoldStrategy(data, events)
     portfolio = NaivePortfolio(data, events)
     execution = SimulatedExecutionHandler(events)
+    strategy = MovingAveragesLongShortStrategy(data, events, short_period=20, long_period=50, portfolio=portfolio)
 
     # Event loop
     while data.continue_backtest:
@@ -29,6 +39,9 @@ def main():
 
         while not events.empty():
             event = events.get()
+            
+            if event is None:
+                continue
 
             if event.type == 'MARKET':
                 # update time index in portfolio
@@ -47,6 +60,7 @@ def main():
 
     # finished
     try:
+        strategy.plot_strategy()
         portfolio.create_equity_curve_dataframe()
         stats = portfolio.output_summary_stats()
         print(stats)

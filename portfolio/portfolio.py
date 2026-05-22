@@ -1,4 +1,5 @@
 import datetime
+from signal import signal
 import numpy as np 
 import pandas as pd
 
@@ -166,14 +167,19 @@ class NaivePortfolio(Portfolio):
         signal - The SignalEvent signal information.
         """
         order = None
-
         symbol = signal.symbol
         direction = signal.signal_type
-        strength = getattr(signal, 'strength', None)
-        if strength is None:
-            strength = getattr(signal, 'quantity', 1)
+        
+        # Get the current price of the stock
+        current_price = self.bars.get_latest_data(symbol)[0][2]
+        
+        # Allocate roughly $5,000 per stock instead of a flat 100 shares
+        mkt_quantity = floor(5000 / current_price) 
+        
+        # (Make sure it buys at least 1 share if the stock is > $5,000)
+        if mkt_quantity == 0:
+            mkt_quantity = 1
 
-        mkt_quantity = floor(100 * strength)
         cur_quantity = self.current_positions[symbol]
         order_type = 'MKT'
 

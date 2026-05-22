@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import math
 from datetime import datetime
 from matplotlib import style
-from event import SignalEvent
+from core.event import SignalEvent
 from strategies.strategy import Strategy
 
 class MovingAveragesLongStrategy(Strategy):
@@ -47,18 +47,22 @@ class MovingAveragesLongStrategy(Strategy):
         price_short = None
         price_long = None
         if self.version == 1:
-            price_short = df['Close'].ewm(span=self.short_period, min_periods=self.short_period, adjust=False).mean()[-1]
-            price_long = df['Close'].ewm(span=self.long_period, min_periods=self.long_period, adjust=False).mean()[-1]
+            price_short = df['Close'].ewm(span=self.short_period, min_periods=self.short_period, adjust=False).mean()
+            price_long = df['Close'].ewm(span=self.long_period, min_periods=self.long_period, adjust=False).mean()
         else:
-            price_short = df['Close'].tail(self.long_period).ewm(span=self.short_period, adjust=False).mean()[-1]
-            price_long = df['Close'].tail(self.long_period).ewm(span=self.long_period, adjust=False).mean()[-1]
+            price_short = df['Close'].tail(self.long_period).ewm(span=self.short_period, adjust=False).mean()
+            price_long = df['Close'].tail(self.long_period).ewm(span=self.long_period, adjust=False).mean()
 
-        return price_short, price_long
+        if not price_short.empty and not price_long.empty:
+            price_short = price_short.iloc[-1]
+            price_long = price_long.iloc[-1]
+            
+        return None,None
 
     def calculate_signals(self, event):
         if event.type == 'MARKET':
             for symbol in self.symbol_list:
-                data = self.data.get_latest_data(symbol, N=-1)
+                data = self.data.get_latest_data(symbol, N=len(self.data.latest_symbol_data[symbol]))
                 df = pd.DataFrame(data, columns=['Symbol','Date','Close'])
                 df = df.drop(['Symbol'], axis=1)
                 df.set_index('Date', inplace=True)
@@ -82,7 +86,7 @@ class MovingAveragesLongStrategy(Strategy):
                         self.signals[symbol] = self.signals[symbol].append({'Signal': -quantity, 'Date': date}, ignore_index=True)
                         if self.verbose: print("Exit", date, price)
 
-    def plot(self):
+    def plot_strategy(self):
         style.use('ggplot')
 
         for symbol in self.symbol_list:
@@ -113,7 +117,7 @@ class MovingAveragesLongStrategy(Strategy):
         plt.show()
 
 class MovingAveragesLongShortStrategy(Strategy):
-    def __init__(self, data, events, portfolio, short_period, long_period, version=1):
+    def __init__(self, data, events, portfolio, short_period, long_period, version=1,verbose =False):
         self.data = data
         self.symbol_list = self.data.symbol_list
         self.events = events
@@ -126,6 +130,7 @@ class MovingAveragesLongShortStrategy(Strategy):
         self.signals = self._setup_signals()
         self.strategy = self._setup_strategy()
         self.bought = self._setup_initial_bought()
+        self.verbose = verbose
 
     def _setup_signals(self):
         signals = {}
@@ -152,18 +157,22 @@ class MovingAveragesLongShortStrategy(Strategy):
         price_short = None
         price_long = None
         if self.version == 1:
-            price_short = df['Close'].ewm(span=self.short_period, min_periods=self.short_period, adjust=False).mean()[-1]
-            price_long = df['Close'].ewm(span=self.long_period, min_periods=self.long_period, adjust=False).mean()[-1]
+            price_short = df['Close'].ewm(span=self.short_period, min_periods=self.short_period, adjust=False).mean()
+            price_long = df['Close'].ewm(span=self.long_period, min_periods=self.long_period, adjust=False).mean()
         else:
-            price_short = df['Close'].tail(self.long_period).ewm(span=self.short_period, adjust=False).mean()[-1]
-            price_long = df['Close'].tail(self.long_period).ewm(span=self.long_period, adjust=False).mean()[-1]
+            price_short = df['Close'].tail(self.long_period).ewm(span=self.short_period, adjust=False).mean()
+            price_long = df['Close'].tail(self.long_period).ewm(span=self.long_period, adjust=False).mean()
 
-        return price_short, price_long
-
+        if not price_short.empty and not price_long.empty:
+            price_short = price_short.iloc[-1]
+            price_long = price_long.iloc[-1]
+            
+        return price_long, price_short
+    
     def calculate_signals(self, event):
         if event.type == 'MARKET':
             for symbol in self.symbol_list:
-                data = self.data.get_latest_data(symbol, N=-1)
+                data = self.data.get_latest_data(symbol, N=len(self.data.latest_symbol_data[symbol]))
                 df = pd.DataFrame(data, columns=['Symbol','Date','Close'])
                 df = df.drop(['Symbol'], axis=1)
                 df.set_index('Date', inplace=True)
@@ -171,50 +180,66 @@ class MovingAveragesLongShortStrategy(Strategy):
                     price_short, price_long = self.calculate_long_short(df)
                     date = data[-1][self.data.time_col]
                     price = data[-1][self.data.price_col]
+                    # 1. LONG ENTRY LOGIC
                     if self.bought[symbol] == False and price_short > price_long:
                         current_positions = self.portfolio.current_positions[symbol]
-                        quantity = math.floor(self.portfolio.current_holdings['cash'] / price + current_positions)
-                        signal = SignalEvent(symbol, date, 'EXIT', math.fabs(current_positions))
-                        self.events.put(signal)
+                        # Exit any existing short before going long
+                        if current_positions < 0:
+                            signal = SignalEvent(symbol, date, 'EXIT', math.fabs(current_positions))
+                            self.events.put(signal)
+                        
+                        quantity = math.floor(self.portfolio.current_holdings['cash'] / price)
                         signal = SignalEvent(symbol, date, 'LONG', quantity)
                         self.events.put(signal)
                         self.bought[symbol] = True
-                        self.signals[symbol] = self.signals[symbol].append({'Signal': quantity, 'Date': date}, ignore_index=True)
+                        
+                        new_row = pd.DataFrame({'Signal': [quantity], 'Date': [date]})
+                        self.signals[symbol] = pd.concat([self.signals[symbol], new_row], ignore_index=True)
                         if self.verbose: print("Long", date, price)
+
+                    # 2. SHORT ENTRY LOGIC (or Exit Long)
                     elif self.bought[symbol] == True and price_short < price_long:
                         quantity = self.portfolio.current_positions[symbol]
+                        # Exit the long
                         signal = SignalEvent(symbol, date, 'EXIT', quantity)
                         self.events.put(signal)
+                        # Enter the short
                         signal = SignalEvent(symbol, date, 'SHORT', quantity)
                         self.events.put(signal)
+                        
                         self.bought[symbol] = False
-                        self.signals[symbol] = self.signals[symbol].append({'Signal': -quantity, 'Date': date}, ignore_index=True)
-                        if self.verbose: print("Short", date, price)
-
-    def plot(self):
+                        new_row = pd.DataFrame({'Signal': [-quantity], 'Date': [date]})
+                        self.signals[symbol] = pd.concat([self.signals[symbol], new_row], ignore_index=True)
+                        if self.verbose: print("Short", date, price) 
+                        
+    def plot_strategy(self):
         style.use('ggplot')
 
         for symbol in self.symbol_list:
-            self.strategy[symbol].set_index('Date', inplace=True)
-            self.signals[symbol].set_index('Date', inplace=True)
-            signals = self.signals[symbol]
-            strategy_fig, strategy_ax = plt.subplots()
+            # 1. Use the sorted versions for everything
+            strat_df = self.strategy[symbol].set_index('Date').sort_index(ascending=True)
+            sig_df = self.signals[symbol].set_index('Date').sort_index(ascending=True)
+            
+            # 2. Prepare price data
             df = self.data.all_data[symbol].copy()
-            df.columns = ['OMXS30']
-            # df['Short'] = df['OMXS30'].ewm(span=self.short_period, min_periods=self.short_period, adjust=False).mean()
-            # df['Long'] = df['OMXS30'].ewm(span=self.long_period, min_periods=self.long_period, adjust=False).mean()
+            if 'Date' in df.columns:
+                df.set_index('Date', inplace=True)
+            df.sort_index(ascending=True, inplace=True)
+            df.columns = ['Price'] # Standardize to 'Price'
 
-            df.plot(ax=strategy_ax, color='dodgerblue', linewidth=1.0)
+            strategy_fig, strategy_ax = plt.subplots()
+            df['Price'].plot(ax=strategy_ax, color='dodgerblue', linewidth=1.0)
 
-            short_index = signals[signals['Signal'] < 0].index
-            long_index = signals[signals['Signal'] > 0].index
+            short_index = sig_df[sig_df['Signal'] < 0].index
+            long_index = sig_df[sig_df['Signal'] > 0].index
 
-            strategy_ax.plot(self.strategy[symbol]['Short'], label='Short EMA', color='grey')
-            strategy_ax.plot(self.strategy[symbol]['Long'], label='Long EMA', color='k')
-            strategy_ax.plot(short_index, df['OMXS30'].loc[short_index], 'v', markersize=10, color='r', label='Short')
-            strategy_ax.plot(long_index, df['OMXS30'].loc[long_index], '^', markersize=10, color='g', label='Long')
+            strategy_ax.plot(strat_df['Short'], label='Short EMA', color='grey')
+            strategy_ax.plot(strat_df['Long'], label='Long EMA', color='k')
+            
+            strategy_ax.plot(short_index, df.loc[short_index, 'Price'], 'v', markersize=10, color='r', label='Short')
+            strategy_ax.plot(long_index, df.loc[long_index, 'Price'], '^', markersize=10, color='g', label='Long')
 
-            strategy_ax.set_title(self.name)
+            strategy_ax.set_title(f"{self.name} - {symbol}")
             strategy_ax.set_xlabel('Time')
             strategy_ax.set_ylabel('Value')
             strategy_ax.legend()
@@ -222,7 +247,7 @@ class MovingAveragesLongShortStrategy(Strategy):
         plt.show()
 
 class MovingAveragesMomentumStrategy(Strategy):
-    def __init__(self, data, events, portfolio, short_period, long_period):
+    def __init__(self, data, events, portfolio, short_period, long_period,version=1, verbose=False):
         self.data = data
         self.symbol_list = self.data.symbol_list
         self.events = events
@@ -230,23 +255,33 @@ class MovingAveragesMomentumStrategy(Strategy):
         self.short_period = short_period
         self.long_period = long_period
         self.name = 'Moving Averages Momentum'
+        self.version =version
+        self.verbose = verbose
 
     def calculate_long_short(self, df):
+        if df.empty or len(df) < self.long_period:
+            return None, None
+
         price_short = None
         price_long = None
+        
         if self.version == 1:
-            price_short = df['Close'].ewm(span=self.short_period, min_periods=self.short_period, adjust=False).mean()[-1]
-            price_long = df['Close'].ewm(span=self.long_period, min_periods=self.long_period, adjust=False).mean()[-1]
+            short_series = df['Close'].ewm(span=self.short_period, min_periods=self.short_period, adjust=False).mean()
+            long_series = df['Close'].ewm(span=self.long_period, min_periods=self.long_period, adjust=False).mean()
         else:
-            price_short = df['Close'].tail(self.long_period).ewm(span=self.short_period, adjust=False).mean()[-1]
-            price_long = df['Close'].tail(self.long_period).ewm(span=self.long_period, adjust=False).mean()[-1]
+            short_series = df['Close'].tail(self.long_period).ewm(span=self.short_period, adjust=False).mean()
+            long_series = df['Close'].tail(self.long_period).ewm(span=self.long_period, adjust=False).mean()
+
+        if not short_series.empty and not long_series.empty:
+            price_short = short_series.iloc[-1]
+            price_long = long_series.iloc[-1]
 
         return price_short, price_long
 
     def calculate_signals(self, event):
         if event.type == 'MARKET':
             for symbol in self.symbol_list:
-                data = self.data.get_latest_data(symbol, N=-1)
+                data = self.data.get_latest_data(symbol, N=len(self.data.latest_symbol_data[symbol]))
                 df = pd.DataFrame(data, columns=['Symbol','Date','Close'])
                 df = df.drop(['Symbol'], axis=1)
                 df.set_index('Date', inplace=True)
@@ -268,3 +303,4 @@ class MovingAveragesMomentumStrategy(Strategy):
                             signal = SignalEvent(symbol, date, 'SHORT', quantity)
                             self.events.put(signal)
                             if self.verbose: print('Short', date, price)
+    
