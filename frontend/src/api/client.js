@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE = 'http://localhost:8000/api';
+const BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 export const getSymbols = () => axios.get(`${BASE}/symbols`);
 export const getStrategies = () => axios.get(`${BASE}/strategies`);
