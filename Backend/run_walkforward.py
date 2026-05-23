@@ -3,35 +3,35 @@ import numpy as np
 from collections import defaultdict
 
 # Strategies
-from strategies.moving_average import MovingAverageStrategy
+from Backend.strategies.moving_average import MovingAverageStrategy
 from strategies.momentum_strategy import RSIStrategy
 from strategies.mean_revision import ZscoreStrategy
 
 # Engine
 from core.backtest_engine import BacktestEngine
-from portfolio.portfolio import Portfolio
+from Backend.portfolio.portfolio import Portfolio
 from signals.signal_handler import SignalHandler
 from execution.execution_handler import ExecutionHandler
-from data.Processed.data_handler import DataHandler
-from data.Processed.data_handler import load_market_data
-from research.regime import RegimeDetector
+from Backend.data.Processed.data_handler import DataHandler
+from Backend.data.Processed.data_handler import load_market_data
+from Backend.research.regime import RegimeDetector
 
 # Walkforward
-from research.walk_forward import WalkForwardOptimizer
+from Backend.research.walk_forward import WalkForwardOptimizer
 
 # Metrics
 from metrics.OldMetrics.performancev1 import window_sharpes
-from metrics.results_tracker import ResultsTracker
+from Backend.metrics.results_tracker import ResultsTracker
 from metrics.OldMetrics.performancev1 import max_drawdown_curve
 
 #Benchmark
 from benchmark.buy_hold import BuyAndHoldBenchmark
 
 #Utils
-from utils.visualization import plot_switching_performance,plot_equity_with_regimes,plot_portfolio_value
+from Backend.utils.visualization import plot_switching_performance,plot_equity_with_regimes,plot_portfolio_value
 
 #config
-from config.config import INITIAL_CASH, TRANSACTION_COST
+from Backend.config.config import INITIAL_CASH, TRANSACTION_COST
 
 #Load data and initialize components
 Symbol = input("Ticker:")
