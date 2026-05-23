@@ -1,0 +1,57 @@
+.ec-card {
+  background: #141414;
+  border: 1px solid #1e1e1e;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.ec-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.ec-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #e8e6e0;
+}
+
+.ec-sub {
+  font-size: 12px;
+  color: #555;
+  margin-top: 3px;
+}
+
+.ec-return {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.ec-return.pos { color: #c8f04a; }
+.ec-return.neg { color: #e24b4a; }
+
+.ec-tooltip {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.ec-tooltip-bar {
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.ec-tooltip-val {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.ec-tooltip-val.pos { color: #c8f04a; }
+.ec-tooltip-val.neg { color: #e24b4a; }
