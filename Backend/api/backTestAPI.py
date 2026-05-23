@@ -3,6 +3,7 @@ import uuid
 from queue import Queue
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
+import math
 
 from data.Processed.data_handler import HistoricCSVDataHandler
 from strategies.moving_average import MovingAveragesLongShortStrategy, MovingAveragesLongStrategy
@@ -13,6 +14,8 @@ from portfolio.portfolio import NaivePortfolio
 router = APIRouter()
 results_store = {}
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+csv_dir = os.path.join(BASE_DIR, 'data', 'raw')
 class BacktestConfig(BaseModel):
     symbols: list[str]
     strategy: str
@@ -21,7 +24,12 @@ class BacktestConfig(BaseModel):
     initial_capital: float = 100000.0
     version: int = 1
 
+def clean_floats(values: list) -> list:
+    """Replace NaN/inf with None so JSON serialization doesn't fail"""
+    return [None if (v is None or math.isnan(v) or math.isinf(v)) else v for v in values]
+
 def execute_backtest(run_id: str, config: BacktestConfig):
+    
     """This runs in the background — keeps the API non-blocking"""
     try:
         results_store[run_id] = {"status": "running"}
@@ -52,11 +60,13 @@ def execute_backtest(run_id: str, config: BacktestConfig):
 
         portfolio.create_equity_curve_dataframe()
         stats = portfolio.output_summary_stats()
+        
+        equity_curve = portfolio.equity_curve['equity_curve'].tolist()
 
         results_store[run_id] = {
             "status": "complete",
             "stats": dict(stats),
-            "equity_curve": portfolio.equity_curve['equity_curve'].tolist(),
+            "equity_curve": clean_floats(equity_curve),
             "signals": {s: strategy.signals[s].to_dict() for s in config.symbols}
         }
     except Exception as e:
