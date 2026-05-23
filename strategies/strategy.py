@@ -1,6 +1,8 @@
 import datetime
 import numpy as np 
 import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib import style
 
 from abc import ABCMeta, abstractmethod
 from core.event import SignalEvent
@@ -42,3 +44,27 @@ class BuyAndHoldStrategy(Strategy):
                         signal = SignalEvent(bars[0][0], bars[0][1], 'LONG', 1)
                         self.events.put(signal)
                         self.bought[s] = True
+                        
+    def plot_strategy(self):
+        style.use('ggplot')
+
+        for symbol in self.symbol_list:
+            df = self.bars.all_data[symbol].copy()
+            if 'Date' in df.columns:
+                df.set_index('Date', inplace=True)
+            df.sort_index(ascending=True, inplace=True)
+            df.columns = ['Price']
+
+            fig, ax = plt.subplots()
+            df['Price'].plot(ax=ax, color='dodgerblue', linewidth=1.0, label='Price')
+
+            # Mark the buy point (first available bar)
+            buy_date = df.index[0]
+            ax.plot(buy_date, df.loc[buy_date, 'Price'], '^', markersize=12, color='g', label='Buy & Hold')
+
+            ax.set_title(f"Buy and Hold - {symbol}")
+            ax.set_xlabel('Time')
+            ax.set_ylabel('Price')
+            ax.legend()
+
+        plt.show()

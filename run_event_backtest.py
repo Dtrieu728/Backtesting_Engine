@@ -3,7 +3,7 @@ from queue import Queue
 
 from data.Processed.data_handler import HistoricCSVDataHandler
 from strategies.strategy import BuyAndHoldStrategy
-from strategies.moving_average import MovingAveragesLongShortStrategy
+from strategies.moving_average import MovingAveragesLongShortStrategy,MovingAveragesLongStrategy
 from execution.execution import SimulatedExecutionHandler
 from portfolio.portfolio import NaivePortfolio
 from core.event import MarketEvent, SignalEvent, OrderEvent, FillEvent
@@ -31,7 +31,19 @@ def main():
     # strategy = BuyAndHoldStrategy(data, events)
     portfolio = NaivePortfolio(data, events)
     execution = SimulatedExecutionHandler(events)
-    strategy = MovingAveragesLongShortStrategy(data, events, short_period=20, long_period=50, portfolio=portfolio)
+    print("Select strategy:")
+    print("1. Moving Averages Long Only")
+    print("2. Moving Averages Long Short")
+    print("3. Buy and Hold")
+    strategy_choice = input("Enter choice (1/2/3): ").strip()
+    if strategy_choice == '1':
+        strategy = MovingAveragesLongStrategy(data, events, short_period=20, long_period=50, portfolio=portfolio)
+    elif strategy_choice == '2':
+        strategy = MovingAveragesLongShortStrategy(data, events, short_period=20, long_period=50, portfolio=portfolio)
+    elif strategy_choice == '3':
+        strategy = BuyAndHoldStrategy(data, events)
+    else:
+        raise RuntimeError('Invalid strategy choice')
 
     # Event loop
     while data.continue_backtest:

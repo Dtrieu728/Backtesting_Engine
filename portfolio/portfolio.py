@@ -158,40 +158,22 @@ class NaivePortfolio(Portfolio):
             self.update_holdings_from_fill(event)
 
     def generate_naive_order(self, signal):
-        """
-        Simply transacts an OrderEvent object as a constant quantity
-        sizing of the signal object, without risk management or
-        position sizing considerations.
-
-        Parameters:
-        signal - The SignalEvent signal information.
-        """
         order = None
         symbol = signal.symbol
         direction = signal.signal_type
-        
-        # Get the current price of the stock
-        current_price = self.bars.get_latest_data(symbol)[0][2]
-        
-        # Allocate roughly $5,000 per stock instead of a flat 100 shares
-        mkt_quantity = floor(5000 / current_price) 
-        
-        # (Make sure it buys at least 1 share if the stock is > $5,000)
-        if mkt_quantity == 0:
-            mkt_quantity = 1
-
+        mkt_quantity = int(signal.quantity)  # use strategy's quantity
         cur_quantity = self.current_positions[symbol]
         order_type = 'MKT'
 
         if direction == 'LONG' and cur_quantity == 0:
             order = OrderEvent(symbol, order_type, mkt_quantity, 'BUY')
-        if direction == 'SHORT' and cur_quantity == 0:
-            order = OrderEvent(symbol, order_type, mkt_quantity, 'SELL')   
-    
+        if direction == 'SHORT' and cur_quantity >= 0:
+            order = OrderEvent(symbol, order_type, mkt_quantity, 'SELL')
         if direction == 'EXIT' and cur_quantity > 0:
             order = OrderEvent(symbol, order_type, abs(cur_quantity), 'SELL')
         if direction == 'EXIT' and cur_quantity < 0:
             order = OrderEvent(symbol, order_type, abs(cur_quantity), 'BUY')
+
         return order
 
     def update_signal(self, event):
