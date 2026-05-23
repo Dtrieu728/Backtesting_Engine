@@ -1,124 +1,217 @@
-import datetime
 import pandas as pd
-import yfinance as yf
-import os,os.path
+import os.path
+import queue
+import quandl
+
 from abc import ABCMeta, abstractmethod
-from core.eventDriven import MarketEvent
+from core.event import MarketEvent
+from datetime import datetime
+from enum import Enum
 
-class DataHandler(object):
+class DataSource(Enum):
+    NASDAQ = "NASDAQ"
+    YAHOO = "YAHOO"
+
+class DataHandler(metaclass=ABCMeta):
     __metaclass__ = ABCMeta
-    
+
     @abstractmethod
-    
-    def get_latest_bars(self,symbol,N=1):
-        """Returns the last N bars from the latest_symbol list, or fewer if less bars are available
-
-        Args:
-            symbol (_type_): Ticker Symbol
-            N (int, optional): Number of Bars. Defaults to 1.
-
-        Raises:
-            NotImplementedError: _description_
-        """
-        raise NotImplementedError("Should implement get_latest_bars()")
-    
+    def get_latest_data(self, symbol, N=1):
+        raise NotImplementedError
     @abstractmethod
-    def update_bars(self):
-        """
-        Pushes the latest bar to the latest symbol structure for all symbols in the symbol list
-        """
-        raise NotImplementedError("Should implement update_bars()")
+    def update_latest_data(self):
+        raise NotImplementedError
 
-        
 class HistoricCSVDataHandler(DataHandler):
-    """HistoricCSVDataHandler is designed to rea CSV files for each requested symbol from disk and provide an interface
-    to obtain the "latest" bar in a manner identical to trading interface
-    """
-    
-    def __init__(self, events, csv_dir, symbol_list):
-        """Initialises the historic data handler by requesting the location of the CSV files and a list of symbols
-        
-        It will be assumed that all files are of the form 'symbol.csv', where symbol is a string in the list
-
-        Args:
-            events (_type_): The Event queue
-            csv_dir (_type_): Absolute directory path to CSV files
-            symbol_list (_type_): A list of symbol strings
-        """
+    def __init__(self, events, csv_dir, symbol_list, source=DataSource.NASDAQ):
         self.events = events
         self.csv_dir = csv_dir
         self.symbol_list = symbol_list
+
         self.symbol_data = {}
-        self.latest_symbol_data={}
+        self.symbol_dataframe = {}
+        self.latest_symbol_data = {}
+        self.all_data = {}
         self.continue_backtest = True
-        
-        self._open_convert_csv_files()
-        
-    def _open_convert_csv_files(self):
-        """
-        Opens the CSv files from the data directory, converting them into pandas Dataframe within a symbol dictionary
-        
-        For this handler it will assumed that the data is taken from Yahoo. Thus its format will be respected
-        """
-        comb_index = None
-        for s in self.symbol_list:
-            self.symbol_data[s] = pd.read_csv(
-                os.path.join(self.csv_dir, '%s.csv' % s), header=0, index_col=0,
-                parse_dates=True, names=['datetime','open','high','low','close','adj_close','volume']
-            )
-            self.symbol_data[s].sort_index(inplace=True)
-            
-            if comb_index is None:
-                comb_index = self.symbol_data[s].index
+
+        self.time_col = 1
+        self.price_col = 2
+
+        self._open_convert_csv_files(source)
+
+    def _open_convert_csv_files(self, source):
+        combined_index = None
+        for symbol in self.symbol_list:
+            if source == DataSource.NASDAQ:
+                self.parse_nasdaq_csv(symbol)
             else:
-                comb_index.union(self.symbol_data[s].index)
-            self.latest_symbol_data[s] = []
-            for s in self.symbol_list:
-                self.symbol_data[s] = self.symbol_data[s].reindex(index=comb_index, method='pad')
-                self.symbol_data[s]["returns"] = self.symbol_data[s]["returns"] = self.symbol_data[s]["adj_close"].pct_change().dropna()
-                self.symbol_data[s] = self.symbol_data[s].iterrows()
-            
-            for s in self.symbol_list:
-                self.symbol_data[s] = self.symbol_data[s].reindex(index=comb_index, method='pad').iterrows()
-    
-    def _get_new_bar(self, symbol):
-        """Generator that returns the latest bar in the CSV file
+                self.parse_yahoo_csv(symbol)
 
-        Args:
-            symbol (_type_): _description_
+            if combined_index is None:
+                combined_index = self.symbol_data[symbol].index
+            else:
+                combined_index = combined_index.union(self.symbol_data[symbol].index)
 
-        Yields:
-            _type_: _description_
-        """
-        
-        for b in self.symbol_data[symbol]:
-            yield tuple([symbol, datetime.datetime.strptime(b[0], '%Y-%m-%d %H:%M:%S'), b[1][0], b[1][1], b[1][2], b[1][3], b[1][4], b[1][5]])
-            
-    def get_latest_bars(self, symbol, N=1):
-        """Returns the last N bars from the latest_symbol list, or fewer if less bars are available
+            self.latest_symbol_data[symbol] = []
 
-        Args:
-            symbol (_type_): _description_
-            N (int, optional): _description_. Defaults to 1.
+     
+        self.start_date = combined_index[0]
+      
 
-        Returns:
-            _type_: _description_
-        """
+        for symbol in self.symbol_list:
+            self.symbol_dataframe[symbol] = self.symbol_data[symbol].reindex(index=combined_index, method='pad')
+            self.all_data[symbol] = self.symbol_dataframe[symbol].copy()
+            self.symbol_data[symbol] = self.symbol_dataframe[symbol].iterrows()
+
+    def _get_new_data(self, symbol):
+        for row in self.symbol_data[symbol]:
+            yield tuple([symbol, row[0], row[1].iloc[0]])
+
+    def get_latest_data(self, symbol, N=1):
         try:
-            bars_list = self.latest_symbol_data[symbol]
+            return self.latest_symbol_data[symbol][-N:]
         except KeyError:
-            print("That symbol is not available in the historical data set.")
-        else:
-            return bars_list[-N:]
-    def update_bars(self):
-        """Pushes the latest bar to the latest symbol structure for all symbols in the symbol list
-        """
-        for s in self.symbol_list:
+            print("{symbol} is not a valid symbol.").format(symbol=symbol)
+
+    def update_latest_data(self):
+        for symbol in self.symbol_list:
+            data = None
             try:
-                bar = self._get_new_bar(s).__next__()
+                data = next(self._get_new_data(symbol))
             except StopIteration:
                 self.continue_backtest = False
-            else:
-                if bar is not None:
-                    self.latest_symbol_data[s].append(bar)
+            if data is not None:
+                self.latest_symbol_data[symbol].append(data)
+
         self.events.put(MarketEvent())
+
+    def create_baseline_dataframe(self):
+        dataframe = None
+        for symbol in self.symbol_list:
+            df = self.symbol_dataframe[symbol]
+            if dataframe == None:
+                dataframe = pd.DataFrame(df['Close'])
+                dataframe.columns = [symbol]
+            else:
+                dataframe[symbol] = pd.DataFrame(df['Close'])
+            dataframe[symbol] = dataframe[symbol].pct_change()
+            dataframe[symbol] = (1.0 + dataframe[symbol]).cumprod()
+
+        return dataframe
+
+    def parse_yahoo_csv(self, symbol):
+        self.symbol_data[symbol] = pd.read_csv(os.path.join(self.csv_dir, symbol + '.csv'), header=0, index_col=0, parse_dates=True)
+
+    def parse_nasdaq_csv(self, symbol):
+        filepath = os.path.join(self.csv_dir, symbol + '.csv')
+        
+        # 1. Load CSV and fix the index dates
+        tmp = pd.read_csv(
+            filepath, 
+            header=0, 
+            index_col=0, 
+            parse_dates=True, 
+            date_format='%Y-%m-%d'
+        ).iloc[::-1]
+        
+        tmp.columns = tmp.columns.str.strip()
+        
+       
+        target_col = 'Close'
+        self.symbol_data[symbol] = pd.DataFrame(tmp[target_col])
+        self.symbol_data[symbol].columns = ['close']
+        
+        
+        if self.symbol_data[symbol]['close'].dtype == object or pd.api.types.is_string_dtype(self.symbol_data[symbol]['close']):
+            self.symbol_data[symbol]['close'] = (
+                self.symbol_data[symbol]['close']
+                .astype(str)
+                .str.replace('$', '', regex=False)
+                .str.replace(',', '', regex=False)
+            )
+        
+        self.symbol_data[symbol]['close'] = pd.to_numeric(self.symbol_data[symbol]['close'], errors='coerce')
+        
+        
+        self.symbol_data[symbol] = self.symbol_data[symbol][self.symbol_data[symbol]['close'] > 0.0]
+        
+class QuandlDataHandler(DataHandler):
+    def __init__(self, events, symbol_list, api_key, start_date='2000-01-01', end_date=None):
+        quandl.ApiConfig.api_key = api_key
+        self.events = events
+        self.symbol_list = symbol_list
+        self.start_date = start_date
+        self.end_date = end_date
+        if self.end_date == None:
+            self.end_date = datetime.today().strftime('%Y-%m-%d')
+
+        self.symbol_data = {}
+        self.symbol_dataframe = {}
+        self.latest_symbol_data = {}
+        self.all_data = {}
+        self.continue_backtest = True
+
+        self.time_col = 1
+        self.price_col = 2
+
+        self._load_convert_quandl_data()
+
+    def _load_convert_quandl_data(self):
+        combined_index = None
+        for symbol in self.symbol_list:
+            self._get_nasdaq_data(symbol)
+
+            if combined_index is None:
+                combined_index = self.symbol_data[symbol].index
+            else:
+                combined_index.union(self.symbol_data[symbol].index)
+
+            self.latest_symbol_data[symbol] = []
+
+        for symbol in self.symbol_list:
+            self.symbol_dataframe[symbol] = self.symbol_data[symbol].reindex(index=combined_index, method='pad')
+            self.all_data[symbol] = self.symbol_dataframe[symbol].copy()
+            self.symbol_data[symbol] = self.symbol_dataframe[symbol].iterrows()
+
+    def _get_new_data(self, symbol):
+        for row in self.symbol_data[symbol]:
+            yield tuple([symbol, row[0], row[1][0]])
+
+    def get_latest_data(self, symbol, N=1):
+        try:
+            return self.latest_symbol_data[symbol][-N:]
+        except KeyError:
+            print("{symbol} is not a valid symbol.").format(symbol=symbol)
+
+    def update_latest_data(self):
+        for symbol in self.symbol_list:
+            data = None
+            try:
+                data = next(self._get_new_data(symbol))
+            except StopIteration:
+                self.continue_backtest = False
+            if data is not None:
+                self.latest_symbol_data[symbol].append(data)
+
+        self.events.put(MarketEvent())
+
+    def create_baseline_dataframe(self):
+        dataframe = None
+        for symbol in self.symbol_list:
+            df = self.symbol_dataframe[symbol]
+            if dataframe == None:
+                dataframe = pd.DataFrame(df['Close'])
+                dataframe.columns = [symbol]
+            else:
+                dataframe[symbol] = pd.DataFrame(df['Close'])
+            dataframe[symbol] = dataframe[symbol].pct_change()
+            dataframe[symbol] = (1.0 + dataframe[symbol]).cumprod()
+
+        return dataframe
+
+    def _get_nasdaq_data(self, symbol):
+        self.symbol_data[symbol] = quandl.get('NASDAQOMX/' + symbol, start_date=self.start_date, end_date=self.end_date)
+        self.symbol_data[symbol].drop(columns=['High', 'Low', 'Total Market Value', 'Dividend Market Value'], inplace=True)
+        self.symbol_data[symbol].columns = ['Close']
+        self.symbol_data[symbol].index.names = ['Date']
+        self.symbol_data[symbol] = self.symbol_data[symbol][self.symbol_data[symbol]['Close'] > 0.0]

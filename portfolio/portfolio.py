@@ -1,13 +1,13 @@
 import datetime
+from signal import signal
 import numpy as np 
 import pandas as pd
-import Queue
 
 from abc import ABCMeta, abstractmethod
 from math import floor
 
-from eventDriven import FillEvent, OrderEvent
-from performance import create_sharpe_ratio, create_drawdowns
+from core.event import FillEvent, OrderEvent
+from metrics.performance import create_sharpe_ratio, create_drawdowns
 
 class Portfolio(object):
     """
@@ -91,7 +91,7 @@ class NaivePortfolio(Portfolio):
         bars = {}
         
         for sym in self.symbol_list:
-            bars[sym] = self.bars.get_latest_bars(sym, N=1)
+            bars[sym] = self.bars.get_latest_data(sym, N=1)
             
         # Update positions
         dp = dict((k,v) for k,v in [(s,0) for s in self.symbol_list])
@@ -109,7 +109,7 @@ class NaivePortfolio(Portfolio):
         
         for s in self.symbol_list:
             # Approximate the real value
-            market_value = self.current_positions[s] * bars[s][0][5]
+            market_value = self.current_positions[s] * bars[s][0][2]
             dh[s] = market_value
             dh['total'] += market_value
         # Append the current holdings
@@ -143,7 +143,7 @@ class NaivePortfolio(Portfolio):
             fill_dir = -1
 
         # Update holdings list with new quantities
-        fill_cost = self.bars.get_latest_bars(fill.symbol)[0][5]  # Close price
+        fill_cost = self.bars.get_latest_data(fill.symbol)[0][2]  # Close price
         cost = fill_dir * fill_cost * fill.quantity
         self.current_holdings[fill.symbol] += cost
         self.current_holdings['commission'] += fill.commission
@@ -158,33 +158,22 @@ class NaivePortfolio(Portfolio):
             self.update_holdings_from_fill(event)
 
     def generate_naive_order(self, signal):
-        """
-        Simply transacts an OrderEvent object as a constant quantity
-        sizing of the signal object, without risk management or
-        position sizing considerations.
-
-        Parameters:
-        signal - The SignalEvent signal information.
-        """
         order = None
-
         symbol = signal.symbol
         direction = signal.signal_type
-        strength = signal.strength
-
-        mkt_quantity = floor(100 * strength)
+        mkt_quantity = int(signal.quantity)  # use strategy's quantity
         cur_quantity = self.current_positions[symbol]
         order_type = 'MKT'
 
         if direction == 'LONG' and cur_quantity == 0:
             order = OrderEvent(symbol, order_type, mkt_quantity, 'BUY')
-        if direction == 'SHORT' and cur_quantity == 0:
-            order = OrderEvent(symbol, order_type, mkt_quantity, 'SELL')   
-    
+        if direction == 'SHORT' and cur_quantity >= 0:
+            order = OrderEvent(symbol, order_type, mkt_quantity, 'SELL')
         if direction == 'EXIT' and cur_quantity > 0:
             order = OrderEvent(symbol, order_type, abs(cur_quantity), 'SELL')
         if direction == 'EXIT' and cur_quantity < 0:
             order = OrderEvent(symbol, order_type, abs(cur_quantity), 'BUY')
+
         return order
 
     def update_signal(self, event):
@@ -211,13 +200,28 @@ class NaivePortfolio(Portfolio):
         """
         Creates a list of summary statistics for the portfolio.
         """
-        total_return = self.equity_curve['equity_curve'][-1]
+        if self.equity_curve.empty:
+            return [
+                ("Total Return", "0.00%"),
+                ("Sharpe Ratio", "0.00"),
+                ("Max Drawdown", "0.00%"),
+                ("Max Drawdown Duration", "0"),
+            ]
+        total_return = self.equity_curve['equity_curve'].iloc[-1]
         returns = self.equity_curve['returns']
         pnl = self.equity_curve['equity_curve']
         sharpe_ratio = create_sharpe_ratio(returns)
         
-        max_dd, max_duration = create_drawdowns(pnl)
-        
+        dd_series, duration_series = create_drawdowns(pnl)
+        try:
+            max_dd = float(dd_series.max())
+        except Exception:
+            max_dd = 0.0
+        try:
+            max_duration = int(duration_series.max())
+        except Exception:
+            max_duration = 0
+
         stats = [("Total Return", "%0.2f%%" % ((total_return - 1.0) * 100.0)),
                  ("Sharpe Ratio", "%0.2f" % sharpe_ratio),
                  ("Max Drawdown", "%0.2f%%" % (max_dd * 100.0)),
