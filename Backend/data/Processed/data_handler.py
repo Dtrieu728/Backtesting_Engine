@@ -32,12 +32,13 @@ class HistoricCSVDataHandler(DataHandler):
         self.symbol_dataframe = {}
         self.latest_symbol_data = {}
         self.all_data = {}
+        self.symbol_generators = {}  
         self.continue_backtest = True
 
         self.time_col = 1
         self.price_col = 2
 
-        self._open_convert_csv_files(source)
+        self._open_convert_csv_files(source)  
 
     def _open_convert_csv_files(self, source):
         combined_index = None
@@ -54,17 +55,18 @@ class HistoricCSVDataHandler(DataHandler):
 
             self.latest_symbol_data[symbol] = []
 
-     
         self.start_date = combined_index[0]
-      
 
         for symbol in self.symbol_list:
             self.symbol_dataframe[symbol] = self.symbol_data[symbol].reindex(index=combined_index, method='pad')
             self.all_data[symbol] = self.symbol_dataframe[symbol].copy()
             self.symbol_data[symbol] = self.symbol_dataframe[symbol].iterrows()
 
+        for symbol in self.symbol_list:
+            self.symbol_generators[symbol] = self._get_new_data(symbol)
+
     def _get_new_data(self, symbol):
-        for row in self.symbol_data[symbol]:
+        for row in self.symbol_data[symbol]:  # creates fresh generator each time
             yield tuple([symbol, row[0], row[1].iloc[0]])
 
     def get_latest_data(self, symbol, N=1):
@@ -77,7 +79,7 @@ class HistoricCSVDataHandler(DataHandler):
         for symbol in self.symbol_list:
             data = None
             try:
-                data = next(self._get_new_data(symbol))
+                data = next(self.symbol_generators[symbol])  # advance stored generator
             except StopIteration:
                 self.continue_backtest = False
             if data is not None:

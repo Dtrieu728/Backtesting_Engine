@@ -3,19 +3,24 @@ import uuid
 from queue import Queue
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
+from dotenv import load_dotenv
 import math
 
+from db.database import SessionLocal
+from db.models import BacktestRun
 from data.Processed.data_handler import HistoricCSVDataHandler
 from strategies.moving_average import MovingAveragesLongShortStrategy, MovingAveragesLongStrategy
 from strategies.strategy import BuyAndHoldStrategy
 from execution.execution import SimulatedExecutionHandler
 from portfolio.portfolio import NaivePortfolio
 
+load_dotenv()
+
 router = APIRouter()
-results_store = {}
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 csv_dir = os.path.join(BASE_DIR, 'data', 'raw')
+
 class BacktestConfig(BaseModel):
     symbols: list[str]
     strategy: str
@@ -29,19 +34,21 @@ def clean_floats(values: list) -> list:
     return [None if (v is None or math.isnan(v) or math.isinf(v)) else v for v in values]
 
 def execute_backtest(run_id: str, config: BacktestConfig):
-    
-    """This runs in the background — keeps the API non-blocking"""
+    db = SessionLocal()
     try:
-        results_store[run_id] = {"status": "running"}
-        
-        # Wire up your existing engine
+        run = db.query(BacktestRun).filter(BacktestRun.id == run_id).first()
+        if run is None:
+            print(f"Run {run_id} not found")
+            return
+        run.status = "running"
+        db.commit()
+
         events = Queue()
         data = HistoricCSVDataHandler(events, csv_dir, config.symbols)
         portfolio = NaivePortfolio(data, events, initial_capital=config.initial_capital)
         execution = SimulatedExecutionHandler(events)
         strategy = get_strategy(config, data, events, portfolio)
 
-        # Your existing event loop — untouched
         while data.continue_backtest:
             data.update_latest_data()
             while not events.empty():
@@ -60,17 +67,25 @@ def execute_backtest(run_id: str, config: BacktestConfig):
 
         portfolio.create_equity_curve_dataframe()
         stats = portfolio.output_summary_stats()
-        
-        equity_curve = portfolio.equity_curve['equity_curve'].tolist()
+        equity_curve = clean_floats(portfolio.equity_curve['equity_curve'].tolist())
 
-        results_store[run_id] = {
-            "status": "complete",
-            "stats": dict(stats),
-            "equity_curve": clean_floats(equity_curve),
-            "signals": {s: strategy.signals[s].to_dict() for s in config.symbols}
-        }
+        run.status = "complete"
+        run.stats = dict(stats)
+        run.equity_curve = equity_curve
+        db.commit()
+        print(f"Backtest {run_id} complete")
+
     except Exception as e:
-        results_store[run_id] = {"status": "error", "detail": str(e)}
+        import traceback
+        print(f"Backtest error for {run_id}:")
+        traceback.print_exc()
+        try:
+            run.status = "error"
+            db.commit()
+        except Exception:
+            pass
+    finally:
+        db.close()
 
 def get_strategy(config, data, events, portfolio):
     """Maps strategy name from request to strategy class"""
@@ -85,16 +100,38 @@ def get_strategy(config, data, events, portfolio):
 
 @router.post("/backtest")
 async def run_backtest(config: BacktestConfig, background_tasks: BackgroundTasks):
-    run_id = str(uuid.uuid4())
+    db = SessionLocal()
+    run = BacktestRun(
+        strategy=config.strategy,
+        symbols=config.symbols,
+        short_period=config.short_period,
+        long_period=config.long_period,
+        initial_capital=config.initial_capital,
+        status="pending"
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    run_id = str(run.id)
+    db.close()
+
     background_tasks.add_task(execute_backtest, run_id, config)
     return {"run_id": run_id, "status": "pending"}
 
 @router.get("/backtest/{run_id}")
 async def get_backtest_status(run_id: str):
-    result = results_store.get(run_id)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Run ID not found")
-    return result
+    db = SessionLocal()
+    run = db.query(BacktestRun).filter(BacktestRun.id == run_id).first()
+    db.close()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return {
+        "status": run.status,
+        "stats": run.stats,
+        "equity_curve": run.equity_curve,
+        "created_at": run.created_at,
+    }
+
 
 @router.get("/strategies")
 async def get_strategies():
