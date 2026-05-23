@@ -17,7 +17,7 @@ export default function Backtest() {
     <div className="bt-shell">
       <div className="bt-sidebar">
         <div className="bt-sidebar-header">
-          <span className="bt-logo-icon">▲</span>
+          <span className="bt-logo-icon"></span>
           <span className="bt-logo-text">Backtest</span>
         </div>
         <StrategyForm onResults={handleResults} />
@@ -26,7 +26,7 @@ export default function Backtest() {
       <div className="bt-main">
         {!results ? (
           <div className="bt-empty">
-            <div className="bt-empty-icon">▲</div>
+            <div className="bt-empty-icon"></div>
             <p className="bt-empty-title">No results yet</p>
             <p className="bt-empty-sub">
               Configure a strategy and run a backtest to see results here.
