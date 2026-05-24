@@ -1,5 +1,6 @@
 import os
 import uuid
+from pydantic import BaseModel, field_validator
 from queue import Queue
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
