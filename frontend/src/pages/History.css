@@ -134,3 +134,9 @@
 .hs-stat-value.neg { color: #e24b4a; }
 .hs-stat-value.pos { color: #c8f04a; }
 .hs-stat-value.neu { color: #e8e6e0; }
+
+
+.bt-sidebar,
+.hs-sidebar {
+  height: calc(100vh - 49px);
+}

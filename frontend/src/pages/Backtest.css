@@ -124,3 +124,8 @@ body {
   max-width: 280px;
   line-height: 1.6;
 }
+
+.bt-sidebar,
+.hs-sidebar {
+  height: calc(100vh - 49px); 
+}
