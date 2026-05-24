@@ -28,6 +28,14 @@ class BacktestConfig(BaseModel):
     long_period: int = 50
     initial_capital: float = 100000.0
     version: int = 1
+    
+    @field_validator('symbols')
+    @classmethod
+    def symbols_must_not_be_empty(cls, v):
+        if not v:
+            raise ValueError('symbols must not be empty')
+        return v
+    
 
 def clean_floats(values: list) -> list:
     """Replace NaN/inf with None so JSON serialization doesn't fail"""
