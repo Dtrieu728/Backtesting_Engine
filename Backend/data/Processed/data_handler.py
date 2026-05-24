@@ -1,7 +1,6 @@
 import pandas as pd
 import os.path
 import queue
-import quandl
 
 from abc import ABCMeta, abstractmethod
 from core.event import MarketEvent
