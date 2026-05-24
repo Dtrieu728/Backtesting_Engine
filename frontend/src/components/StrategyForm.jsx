@@ -15,7 +15,7 @@ export default function StrategyForm({ onResults }) {
   const [status, setStatus] = useState(null);
 
   useEffect(() => {
-    getSymbols().then(r => setSymbols(r.data.symbols)).catch(() => {});
+    getSymbols().then(r => setSymbols(r.data.symbols)).catch(() => {}); // ← .symbols
     getStrategies().then(r => setStrategies(r.data)).catch(() => {});
   }, []);
 
