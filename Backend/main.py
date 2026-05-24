@@ -8,7 +8,8 @@ app = FastAPI(title="Backtesting Engine")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000",
-                   "https://backtesting-engine-mklub5j0d-dustine-trieus-projects.vercel.app/",],  # React dev server,
+                   "https://backtesting-engine-mklub5j0d-dustine-trieus-projects.vercel.app/",
+                   "https://backtesting-engine.vercel.app",],  # React dev server,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
