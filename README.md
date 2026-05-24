@@ -28,13 +28,11 @@ python3 -m pip install -r requirements.txt
 - Create new strategies by inheriting from `Strategy`
 - Implement custom portfolio management in `Portfolio`
 - Add realistic execution simulation in `ExecutionHandler` 
-- Walk-Forward optimization 
-- History page
-- parameter Sweep
-- real data
 
-<!-- ## Work-in progress features
-- [x] Walk forward Testing
-- [ ] Better Benchmark system
-  - [ ] Better Signal Handling (High_vol getting drowned out)
-- [ ] Improve plots -->
+
+## Work-in progress features
+- [ ] Walk forward Testing
+- [ ] Live data via yfinance — type any ticker instead of using CSVs
+- [ ] Drawdown chart — visualize drawdown over time below the equity curve
+- [ ] Parameter sweep — find optimal EMA periods automatically
+
