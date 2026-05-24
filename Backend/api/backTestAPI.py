@@ -118,6 +118,26 @@ async def run_backtest(config: BacktestConfig, background_tasks: BackgroundTasks
     background_tasks.add_task(execute_backtest, run_id, config)
     return {"run_id": run_id, "status": "pending"}
 
+@router.get("/backtest/history")
+async def get_backtest_history():
+    db = SessionLocal()
+    runs = db.query(BacktestRun).order_by(BacktestRun.created_at.desc()).limit(20).all()
+    db.close()
+    return [
+        {
+            "run_id": str(r.id),
+            "strategy": r.strategy,
+            "symbols": r.symbols,
+            "short_period": r.short_period,
+            "long_period": r.long_period,
+            "status": r.status,
+            "stats": r.stats,
+            "created_at": str(r.created_at),
+        }
+        for r in runs
+    ]
+
+
 @router.get("/backtest/{run_id}")
 async def get_backtest_status(run_id: str):
     db = SessionLocal()
@@ -131,7 +151,6 @@ async def get_backtest_status(run_id: str):
         "equity_curve": run.equity_curve,
         "created_at": run.created_at,
     }
-
 
 @router.get("/strategies")
 async def get_strategies():
