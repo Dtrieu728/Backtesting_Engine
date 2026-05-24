@@ -45,4 +45,7 @@ jobs:
       - name: Run tests
         run: |
           cd Backend
-          pytest tests/ -v
+          python -m pytest tests/ -v
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost/backtest
+          PYTHONPATH: /home/runner/work/Backtesting_Engine/Backtesting_Engine/Backend

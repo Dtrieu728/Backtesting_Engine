@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.backTestAPI import router
 from db.database import init_db
+from contextlib import asynccontextmanager
 
 app = FastAPI(title="Backtesting Engine")
 
@@ -15,8 +16,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     init_db()
-
+    yield
+    
+app = FastAPI(title="Backtesting Engine", lifespan=lifespan)
 app.include_router(router, prefix="/api")
