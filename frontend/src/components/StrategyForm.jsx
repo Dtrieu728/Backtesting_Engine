@@ -15,9 +15,16 @@ export default function StrategyForm({ onResults }) {
   const [status, setStatus] = useState(null);
 
   useEffect(() => {
-    getSymbols().then(r => setSymbols(r.data.symbols)).catch(() => {}); // ← .symbols
-    getStrategies().then(r => setStrategies(r.data)).catch(() => {});
-  }, []);
+    getSymbols().then(r => {
+      const data = r.data.symbols ?? r.data ?? [];
+      setSymbols(Array.isArray(data) ? data : []);
+    }).catch(() => {});
+  
+    getStrategies().then(r => {
+      const data = r.data ?? [];
+      setStrategies(Array.isArray(data) ? data : []);
+    }).catch(() => {});
+    }, []);
 
   const handleSymbolChange = (e) => {
     const selected = [...e.target.selectedOptions].map(o => o.value);
