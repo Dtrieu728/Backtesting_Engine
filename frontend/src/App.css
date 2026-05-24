@@ -36,3 +36,29 @@
     transform: rotate(360deg);
   }
 }
+
+.app-nav {
+  display: flex;
+  gap: 8px;
+  padding: 12px 1.5rem;
+  background: #0d0d0d;
+  border-bottom: 1px solid #1e1e1e;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.app-nav-btn {
+  background: none;
+  border: 1px solid #242424;
+  border-radius: 6px;
+  color: #666;
+  font-size: 13px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.app-nav-btn:hover { color: #e8e6e0; border-color: #333; }
+.app-nav-btn.active { color: #c8f04a; border-color: #c8f04a; background: #1e2a0e; }
