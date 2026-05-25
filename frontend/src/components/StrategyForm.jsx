@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getSymbols, getStrategies, runBacktest, getBacktestResult } from "../api/client";
+import { getSymbols, getStrategies, runBacktest, getBacktestResult, validateTicker } from "../api/client";
 import "./StrategyForm.css";
 
 export default function StrategyForm({ onResults }) {
@@ -11,24 +11,48 @@ export default function StrategyForm({ onResults }) {
     short_period: 20,
     long_period: 50,
     initial_capital: 100000,
+    use_live_data: false,
+    start_date: '2010-01-01',
   });
   const [status, setStatus] = useState(null);
+  const [useLiveData, setUseLiveData] = useState(false);
+  const [tickerInput, setTickerInput] = useState('');
+  const [tickerError, setTickerError] = useState(null);
 
   useEffect(() => {
     getSymbols().then(r => {
       const data = r.data.symbols ?? r.data ?? [];
       setSymbols(Array.isArray(data) ? data : []);
     }).catch(() => {});
-  
+
     getStrategies().then(r => {
       const data = r.data ?? [];
       setStrategies(Array.isArray(data) ? data : []);
     }).catch(() => {});
-    }, []);
+  }, []);
 
   const handleSymbolChange = (e) => {
     const selected = [...e.target.selectedOptions].map(o => o.value);
     setConfig(c => ({ ...c, symbols: selected }));
+  };
+
+  const handleAddTicker = async () => {
+    const symbol = tickerInput.trim().toUpperCase();
+    if (!symbol) return;
+    try {
+      await validateTicker(symbol);
+      setConfig(c => ({ ...c, symbols: [...new Set([...c.symbols, symbol])] }));
+      setTickerInput('');
+      setTickerError(null);
+    } catch {
+      setTickerError(`${symbol} not found`);
+    }
+  };
+
+  const handleDataSourceChange = (e) => {
+    const live = e.target.value === 'live';
+    setUseLiveData(live);
+    setConfig(c => ({ ...c, use_live_data: live, symbols: [] }));
   };
 
   const handleSubmit = async () => {
@@ -43,7 +67,7 @@ export default function StrategyForm({ onResults }) {
           if (result.data.status === "complete") {
             clearInterval(interval);
             setStatus("complete");
-            onResults(result.data, config); // ← passes config as second arg
+            onResults(result.data, config);
           } else if (result.data.status === "error") {
             clearInterval(interval);
             setStatus("error");
@@ -76,19 +100,56 @@ export default function StrategyForm({ onResults }) {
       </div>
 
       <div className="sf-field">
-        <label className="sf-label">Symbols</label>
+        <label className="sf-label">Data source</label>
         <select
-          className="sf-select sf-multiselect"
-          multiple
-          value={config.symbols}
-          onChange={handleSymbolChange}
+          className="sf-select"
+          value={useLiveData ? 'live' : 'csv'}
+          onChange={handleDataSourceChange}
         >
-          {symbols.map(s => (
-            <option key={s} value={s}>{s}</option>
-          ))}
+          <option value="csv">CSV files</option>
+          <option value="live">Live data (yfinance)</option>
         </select>
-        <span className="sf-hint">Hold Ctrl to select multiple</span>
       </div>
+
+      {useLiveData ? (
+        <div className="sf-field">
+          <label className="sf-label">Add ticker</label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              className="sf-input"
+              placeholder="e.g. AAPL"
+              value={tickerInput}
+              onChange={e => setTickerInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddTicker()}
+            />
+            <button className="sf-add-btn" onClick={handleAddTicker}>+</button>
+          </div>
+          {tickerError && <span className="sf-error">{tickerError}</span>}
+          <div className="sf-tags">
+            {config.symbols.map(s => (
+              <span key={s} className="sf-symbol-tag">
+                {s}
+                <button onClick={() => setConfig(c => ({ ...c, symbols: c.symbols.filter(x => x !== s) }))}>×</button>
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="sf-field">
+          <label className="sf-label">Symbols</label>
+          <select
+            className="sf-select sf-multiselect"
+            multiple
+            value={config.symbols}
+            onChange={handleSymbolChange}
+          >
+            {symbols.map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <span className="sf-hint">Hold Ctrl to select multiple</span>
+        </div>
+      )}
 
       <div className="sf-divider" />
       <div className="sf-section-label">Parameters</div>

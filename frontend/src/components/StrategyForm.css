@@ -111,3 +111,45 @@
   color: #e24b4a;
   text-align: center;
 }
+
+.sf-add-btn {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #2a2a2a;
+  background: #1a1a1a;
+  color: #e8e6e0;
+  cursor: pointer;
+  font-size: 16px;
+  font-family: inherit;
+}
+
+.sf-add-btn:hover { border-color: #c8f04a; }
+
+.sf-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.sf-symbol-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #1e2a0e;
+  color: #c8f04a;
+  border: 1px solid #2e3e12;
+}
+
+.sf-symbol-tag button {
+  background: none;
+  border: none;
+  color: #c8f04a;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+  line-height: 1;
+}
