@@ -7,4 +7,4 @@ export const getStrategies = () => axios.get(`${BASE}/strategies`);
 export const runBacktest = (config) => axios.post(`${BASE}/backtest`, config);
 export const getBacktestResult = (runId) => axios.get(`${BASE}/backtest/${runId}`);
 export const getBacktestHistory = () => axios.get(`${BASE}/backtest/history`);
-export const validateTicker = (symbol) => axios.get(`${BASE}/validate/${symbol}`);
+export const validateTicker = (symbol) => axios.get(`${BASE}/ticker/${symbol}`);
