@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import math
+import yfinance as yf
 
 from db.database import SessionLocal
 from db.models import BacktestRun
@@ -29,6 +30,8 @@ class BacktestConfig(BaseModel):
     long_period: int = 50
     initial_capital: float = 100000.0
     version: int = 1
+    use_live_data:bool = False
+    start_date: str = '2010-01-01'
     
     @field_validator('symbols')
     @classmethod
@@ -53,7 +56,13 @@ def execute_backtest(run_id: str, config: BacktestConfig):
         db.commit()
 
         events = Queue()
-        data = HistoricCSVDataHandler(events, csv_dir, config.symbols)
+        
+        if config.use_live_data:
+            from data.processed.data_handler import YFinanceDataHandler
+            data = YFinanceDataHandler(events, config.symbols,start_date=config.start_date)
+        else:
+            data = HistoricCSVDataHandler(events, csv_dir, config.symbols)
+        
         portfolio = NaivePortfolio(data, events, initial_capital=config.initial_capital)
         execution = SimulatedExecutionHandler(events)
         strategy = get_strategy(config, data, events, portfolio)
@@ -174,3 +183,21 @@ async def get_symbols():
     """Returns available symbols based on CSV files present in data/raw"""
     available = [f.replace('.csv', '') for f in os.listdir(csv_dir) if f.endswith('.csv')]
     return {"symbols": available}
+
+@router.get("/ticker/{symbol}")
+async def validate_ticker(symbol: str):
+    """
+    Checks if a ticker is valid and returns basic info about it such as name
+    """
+    try:
+        ticker = yf.Ticker(symbol.upper())
+        info = ticker.info
+        if not info or info.get("regularMarketPrice") is None:
+            raise HTTPException(status_code=404, detail="Ticker not found")
+        return {
+            "symbol": symbol.upper(),
+            "name": info.get("shortName", symbol),
+            "price": info.get("regularMarketPrice"),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail= f"{symbol} not found")
