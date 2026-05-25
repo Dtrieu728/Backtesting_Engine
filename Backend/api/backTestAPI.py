@@ -58,7 +58,7 @@ def execute_backtest(run_id: str, config: BacktestConfig):
         events = Queue()
         
         if config.use_live_data:
-            from data.processed.data_handler import YFinanceDataHandler
+            from data.Processed.data_handler import YFinanceDataHandler
             data = YFinanceDataHandler(events, config.symbols,start_date=config.start_date)
         else:
             data = HistoricCSVDataHandler(events, csv_dir, config.symbols)

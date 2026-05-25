@@ -239,30 +239,49 @@ class YFinanceDataHandler(DataHandler):
         self._load_data()
     
     def _load_data(self):
-        combined_index = None 
-        
+        combined_index = None
+
         for symbol in self.symbol_list:
-            df  = yf.download(symbol, start=self.start_date,auto_adjust=True,progress=False)
+            df = yf.download(symbol, start=self.start_date, auto_adjust=True, progress=False)
+        
+            
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+        
             df = df[['Close']].copy()
             df.columns = ['close']
-            df = df[df['close']> 0.0]
+            df['close'] = pd.to_numeric(df['close'], errors='coerce')
+            df = df[df['close'] > 0.0].dropna()
             df.index = pd.to_datetime(df.index)
             self.symbol_data[symbol] = df
-            
+
             if combined_index is None:
                 combined_index = df.index
             else:
                 combined_index = combined_index.union(df.index)
-            
+
             self.latest_symbol_data[symbol] = []
+
         self.start_date = combined_index[0]
-        
+
+        for symbol in self.symbol_list:
+            self.symbol_dataframe[symbol] = self.symbol_data[symbol].reindex(
+                index=combined_index, method='pad'
+            )
+            self.all_data[symbol] = self.symbol_dataframe[symbol].copy()
+            self.symbol_data[symbol] = self.symbol_dataframe[symbol].iterrows()
+
         for symbol in self.symbol_list:
             self.symbol_generators[symbol] = self._get_new_data(symbol)
             
     def _get_new_data(self, symbol):
         for row in self.symbol_data[symbol]:
-            yield tuple([symbol, row[0], row[1].iloc[0]])
+            val = row[1]
+            if hasattr(val, 'iloc'):
+                price = val.iloc[0]
+            else:
+                price = float(val)
+            yield tuple([symbol, row[0], price])
             
     def get_latest_data(self, symbol, N=1):
         try:
