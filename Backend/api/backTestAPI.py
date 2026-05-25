@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import math
+import yfinance as yf
 
 from db.database import SessionLocal
 from db.models import BacktestRun
@@ -174,3 +175,21 @@ async def get_symbols():
     """Returns available symbols based on CSV files present in data/raw"""
     available = [f.replace('.csv', '') for f in os.listdir(csv_dir) if f.endswith('.csv')]
     return {"symbols": available}
+
+@router.get("/ticker/{symbol}")
+async def validate_ticker(symbol: str):
+    """
+    Checks if a ticker is valid and returns basic info about it such as name
+    """
+    try:
+        ticker = yf.Ticker(symbol.upper())
+        info = ticker.info
+        if not info or info.get("regularMarketPrice") is None:
+            raise HTTPException(status_code=404, detail="Ticker not found")
+        return {
+            "symbol": symbol.upper(),
+            "name": info.get("shortName", symbol),
+            "price": info.get("regularMarketPrice"),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail= f"{symbol} not found")
