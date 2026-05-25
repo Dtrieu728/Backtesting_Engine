@@ -30,6 +30,8 @@ class BacktestConfig(BaseModel):
     long_period: int = 50
     initial_capital: float = 100000.0
     version: int = 1
+    use_live_data:bool = False
+    start_date: str = '2010-01-01'
     
     @field_validator('symbols')
     @classmethod
@@ -54,7 +56,13 @@ def execute_backtest(run_id: str, config: BacktestConfig):
         db.commit()
 
         events = Queue()
-        data = HistoricCSVDataHandler(events, csv_dir, config.symbols)
+        
+        if config.use_live_data:
+            from data.processed.data_handler import YFinanceDataHandler
+            data = YFinanceDataHandler(events, config.symbols,start_date=config.start_date)
+        else:
+            data = HistoricCSVDataHandler(events, csv_dir, config.symbols)
+        
         portfolio = NaivePortfolio(data, events, initial_capital=config.initial_capital)
         execution = SimulatedExecutionHandler(events)
         strategy = get_strategy(config, data, events, portfolio)

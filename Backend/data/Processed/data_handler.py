@@ -6,6 +6,7 @@ from abc import ABCMeta, abstractmethod
 from core.event import MarketEvent
 from datetime import datetime
 from enum import Enum
+import yfinance as yf
 
 class DataSource(Enum):
     NASDAQ = "NASDAQ"
@@ -216,3 +217,67 @@ class QuandlDataHandler(DataHandler):
         self.symbol_data[symbol].columns = ['Close']
         self.symbol_data[symbol].index.names = ['Date']
         self.symbol_data[symbol] = self.symbol_data[symbol][self.symbol_data[symbol]['Close'] > 0.0]
+        
+        
+
+class YFinanceDataHandler(DataHandler):
+    def __init__(self, events, symbol_list, start_date='2000-01-01'):
+        self.events = events
+        self.symbol_list = symbol_list
+        self.start_date = start_date
+        
+        self.symbol_data = {}
+        self.symbol_dataframe = {}
+        self.latest_symbol_data = {}
+        self.all_data = {}
+        self.symbol_generators = {}
+        self.continue_backtest = True
+
+        self.time_col = 1
+        self.price_col = 2
+        
+        self._load_data()
+    
+    def _load_data(self):
+        combined_index = None 
+        
+        for symbol in self.symbol_list:
+            df  = yf.download(symbol, start=self.start_date,auto_adjust=True,progress=False)
+            df = df[['Close']].copy()
+            df.columns = ['close']
+            df = df[df['close']> 0.0]
+            df.index = pd.to_datetime(df.index)
+            self.symbol_data[symbol] = df
+            
+            if combined_index is None:
+                combined_index = df.index
+            else:
+                combined_index = combined_index.union(df.index)
+            
+            self.latest_symbol_data[symbol] = []
+        self.start_date = combined_index[0]
+        
+        for symbol in self.symbol_list:
+            self.symbol_generators[symbol] = self._get_new_data(symbol)
+            
+    def _get_new_data(self, symbol):
+        for row in self.symbol_data[symbol]:
+            yield tuple([symbol, row[0], row[1].iloc[0]])
+            
+    def get_latest_data(self, symbol, N=1):
+        try:
+            return self.latest_symbol_data[symbol][-N:]
+        except KeyError:
+            print(f"{symbol} is not a valid symbol.")
+    
+    def update_latest_data(self):
+        for symbol in self.symbol_list:
+            data = None
+            try:
+                data = next(self.symbol_generators[symbol])
+            except StopIteration:
+                self.continue_backtest = False
+            if data is not None:
+                self.latest_symbol_data[symbol].append(data)
+                
+        self.events.put(MarketEvent())
