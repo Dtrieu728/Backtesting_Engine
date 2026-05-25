@@ -32,7 +32,7 @@ python3 -m pip install -r requirements.txt
 
 ## Work-in progress features
 - [ ] Walk forward Testing
-- [ ] Live data via yfinance — type any ticker instead of using CSVs
+- [x] Live data via yfinance — type any ticker instead of using CSVs
 - [ ] Drawdown chart — visualize drawdown over time below the equity curve
 - [ ] Parameter sweep — find optimal EMA periods automatically
 
