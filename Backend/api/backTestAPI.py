@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import math
+import pandas as pd
 import yfinance as yf
 
 from db.database import SessionLocal
@@ -16,6 +17,7 @@ from strategies.moving_average import MovingAveragesLongShortStrategy, MovingAve
 from strategies.strategy import BuyAndHoldStrategy
 from execution.execution import SimulatedExecutionHandler
 from portfolio.portfolio import NaivePortfolio
+from core.event import MarketEvent
 
 load_dotenv()
 
@@ -74,13 +76,14 @@ def run_single_backtest(data_df,symbols,strategy_name,short_period,long_period,i
     
     class SliceDataHandler:
         def __init__(self,df,symbol_list):
-            self.symbols_list = symbol_list
+            self.symbol_list = symbol_list
             self.latest_symbol_data = {s: [] for s in symbol_list}
             self.all_data = {}
             self.symbol_generators = {}
             self.continue_backtest = True
             self.time_col = 1
             self.price_col = 2
+            self.start_date = df.index[0]
             
             for symbol in symbol_list:
                 self.all_data[symbol] = df[[symbol]].copy()
@@ -93,16 +96,16 @@ def run_single_backtest(data_df,symbols,strategy_name,short_period,long_period,i
         def get_latest_data(self, symbol, N=1):
             return self.latest_symbol_data[symbol][-N:]
         
-        def update_latest_date(self):
-            exhausted = True
-            for symbol in self.symbols_list:
+        def update_latest_data(self):
+            for symbol in self.symbol_list:
                 try:
                     data = next(self.symbol_generators[symbol])
                     self.latest_symbol_data[symbol].append(data)
-                    exhausted = False
                 except StopIteration:
                     self.continue_backtest = False
-                events.put(MarketEvent())
+            events.put(MarketEvent())
+                
+                
     data = SliceDataHandler(data_df,symbols)
     portfolio = NaivePortfolio(data, events, initial_capital=initial_capital)
     execution = SimulatedExecutionHandler(events)
@@ -115,9 +118,9 @@ def run_single_backtest(data_df,symbols,strategy_name,short_period,long_period,i
     strategy = get_strategy(config_obj, data, events, portfolio)
     
     while data.continue_backtest:
-        data.update_latest_date()
+        data.update_latest_data()
         while not events.empty():
-            event = events.empty()
+            event = events.get()
             if event is None:
                 continue
             if event.type == 'MARKET':
