@@ -140,3 +140,27 @@
 .hs-sidebar {
   height: calc(100vh - 49px);
 }
+
+.hs-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.hs-export-msg {
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: var(--border-radius-md);
+  margin-bottom: 1rem;
+}
+
+.hs-export-msg.success {
+  background: #EAF3DE;
+  color: #27500A;
+}
+
+.hs-export-msg.error {
+  background: #FAECE7;
+  color: #712B13;
+}

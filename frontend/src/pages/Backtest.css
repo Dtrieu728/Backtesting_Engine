@@ -129,3 +129,19 @@ body {
 .hs-sidebar {
   height: calc(100vh - 49px); 
 }
+
+.bt-export-btn{
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #2a2a2a;
+  background: #1a1a1a;
+  color: #e8e6e0;
+  cursor: pointer;
+  font-size: 16px;
+  font-family: inherit;
+}
+
+.bt-export-btn:hover{
+  color: #c8f04a;
+  border-color: #c8f04a;
+}

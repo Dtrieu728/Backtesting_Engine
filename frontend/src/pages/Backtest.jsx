@@ -2,6 +2,7 @@ import { useState } from "react";
 import StrategyForm from "../components/StrategyForm";
 import EquityCurve from "../components/EquityCurve";
 import StatsPanel from "../components/StatsPanel";
+import { exportStrategy } from "../api/client";
 import "./Backtest.css";
 
 export default function Backtest() {
@@ -9,9 +10,26 @@ export default function Backtest() {
   const [runConfig, setRunConfig] = useState(null);
 
   const handleResults = (data, config) => {
+    console.log("full results object:", data);
     setResults(data);
     setRunConfig(config);
   };
+  
+const handleExport = async (runId) => {
+    if (!runId) {
+        console.error("No run ID available — results object:", results);
+        alert("Run ID not found — check console");
+        return;
+    }
+    try {
+        const res = await exportStrategy(runId);
+        alert(`Exported: ${res.data.strategy} short=${res.data.short_period} long=${res.data.long_period}`);
+        console.log("Export result:", res.data);
+    } catch (err) {
+        console.error("Export failed:", err);
+        alert("Export failed");
+    }
+};
 
   return (
     <div className="bt-shell">
@@ -41,9 +59,17 @@ export default function Backtest() {
                   {runConfig?.strategy} · {runConfig?.symbols?.join(", ")}
                 </p>
               </div>
+              <button
+                className="bt-export-btn"
+                onClick={() => handleExport(results.id)}
+              >
+                Export to Simulator
+              </button>
               <div className="bt-symbol-tags">
-                {runConfig?.symbols?.map(s => (
-                  <span key={s} className="bt-tag">{s}</span>
+                {runConfig?.symbols?.map((s) => (
+                  <span key={s} className="bt-tag">
+                    {s}
+                  </span>
                 ))}
               </div>
             </div>

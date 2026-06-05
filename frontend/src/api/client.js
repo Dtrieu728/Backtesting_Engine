@@ -9,3 +9,4 @@ export const getBacktestResult = (runId) => axios.get(`${BASE}/backtest/${runId}
 export const getBacktestHistory = () => axios.get(`${BASE}/backtest/history`);
 export const validateTicker = (symbol) => axios.get(`${BASE}/ticker/${symbol}`);
 export const runWalkForward = (config) => axios.post(`${BASE}/walkforward`, config);
+export const exportStrategy = (runId) => axios.post(`${BASE}/export?run_id=${runId}`);

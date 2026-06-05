@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { getBacktestHistory } from "../api/client";
+import { getBacktestHistory, exportStrategy } from "../api/client";
 import EquityCurve from "../components/EquityCurve";
 import "./History.css";
 
 export default function History() {
   const [runs, setRuns] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [exportMsg, setExportMsg] = useState(null);
 
   useEffect(() => {
     getBacktestHistory().then(r => setRuns(r.data)).catch(() => {});
@@ -20,6 +21,19 @@ export default function History() {
     if (!stats) return null;
     const entry = Object.entries(stats).find(([k]) => k === "Total Return");
     return entry ? entry[1] : null;
+  };
+
+  const handleExport = async (runId) => {
+    setExportMsg(null);
+    try {
+      const res = await exportStrategy(runId);
+      setExportMsg({
+        type: "success",
+        text: `Exported: ${res.data.strategy} · short=${res.data.short_period} long=${res.data.long_period}`
+      });
+    } catch (err) {
+      setExportMsg({ type: "error", text: "Export failed" });
+    }
   };
 
   return (
@@ -40,7 +54,7 @@ export default function History() {
               <div
                 key={run.run_id}
                 className={`hs-item ${selected?.run_id === run.run_id ? "hs-item--active" : ""}`}
-                onClick={() => setSelected(run)}
+                onClick={() => { setSelected(run); setExportMsg(null); }}
               >
                 <div className="hs-item-top">
                   <span className="hs-item-strategy">{run.strategy}</span>
@@ -75,12 +89,26 @@ export default function History() {
                   {selected.symbols?.join(", ")} · EMA {selected.short_period}/{selected.long_period} · {formatDate(selected.created_at)}
                 </p>
               </div>
-              <div className="hs-tags">
-                {selected.symbols?.map(s => (
-                  <span key={s} className="hs-tag">{s}</span>
-                ))}
+              <div className="hs-header-right">
+                <button
+                  className="bt-export-btn"
+                  onClick={() => handleExport(selected.run_id)}
+                >
+                  Export to Simulator
+                </button>
+                <div className="hs-tags">
+                  {selected.symbols?.map(s => (
+                    <span key={s} className="hs-tag">{s}</span>
+                  ))}
+                </div>
               </div>
             </div>
+
+            {exportMsg && (
+              <div className={`hs-export-msg ${exportMsg.type}`}>
+                {exportMsg.text}
+              </div>
+            )}
 
             {selected.stats && (
               <div className="hs-stats-grid">

@@ -2,12 +2,15 @@ import os
 from itertools import product
 from pydantic import BaseModel, field_validator
 from queue import Queue
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import math
 import pandas as pd
 import yfinance as yf
+from sqlalchemy.orm import Session
+import json
+from datetime import datetime
 
 from db.database import SessionLocal
 from db.models import BacktestRun
@@ -25,6 +28,8 @@ router = APIRouter()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 csv_dir = os.path.join(BASE_DIR, 'data', 'raw')
+
+
 
 class BacktestConfig(BaseModel):
     symbols: list[str]
@@ -398,6 +403,7 @@ async def get_backtest_status(run_id: str):
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
     return {
+        "id": str(run.id),
         "status": run.status,
         "stats": run.stats,
         "equity_curve": run.equity_curve,
@@ -435,9 +441,15 @@ async def validate_ticker(symbol: str):
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail= f"{symbol} not found")
-    
 
-@app.post("/api/export")
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+@router.post("/export")
 def export_config(run_id: str, db: Session = Depends(get_db)):
     run = db.query(BacktestRun).filter(BacktestRun.id == run_id).first()
     if not run:
@@ -449,7 +461,7 @@ def export_config(run_id: str, db: Session = Depends(get_db)):
         "short_period": run.short_period,
         "long_period": run.long_period,
         "initial_capital": run.initial_capital,
-        "sharpe": run.stats.get("sharpe_ratio"),
+        "sharpe": run.stats.get("Sharpe Ratio") if run.stats else None,
         "exported_at": datetime.utcnow().isoformat()
     }
 
