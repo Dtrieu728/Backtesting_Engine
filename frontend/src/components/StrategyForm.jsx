@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { getSymbols, getStrategies, runBacktest, getBacktestResult, validateTicker } from "../api/client";
+import {
+  getSymbols,
+  getStrategies,
+  runBacktest,
+  getBacktestResult,
+  validateTicker,
+  runWalkForward,
+} from "../api/client";
 import "./StrategyForm.css";
 
 export default function StrategyForm({ onResults }) {
@@ -12,28 +19,33 @@ export default function StrategyForm({ onResults }) {
     long_period: 50,
     initial_capital: 100000,
     use_live_data: false,
-    start_date: '2010-01-01',
+    start_date: "2010-01-01",
   });
   const [status, setStatus] = useState(null);
   const [useLiveData, setUseLiveData] = useState(false);
-  const [tickerInput, setTickerInput] = useState('');
+  const [tickerInput, setTickerInput] = useState("");
   const [tickerError, setTickerError] = useState(null);
+  const [mode, setMode] = useState("backtest");
 
   useEffect(() => {
-    getSymbols().then(r => {
-      const data = r.data.symbols ?? r.data ?? [];
-      setSymbols(Array.isArray(data) ? data : []);
-    }).catch(() => {});
+    getSymbols()
+      .then((r) => {
+        const data = r.data.symbols ?? r.data ?? [];
+        setSymbols(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {});
 
-    getStrategies().then(r => {
-      const data = r.data ?? [];
-      setStrategies(Array.isArray(data) ? data : []);
-    }).catch(() => {});
+    getStrategies()
+      .then((r) => {
+        const data = r.data ?? [];
+        setStrategies(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {});
   }, []);
 
   const handleSymbolChange = (e) => {
-    const selected = [...e.target.selectedOptions].map(o => o.value);
-    setConfig(c => ({ ...c, symbols: selected }));
+    const selected = [...e.target.selectedOptions].map((o) => o.value);
+    setConfig((c) => ({ ...c, symbols: selected }));
   };
 
   const handleAddTicker = async () => {
@@ -41,8 +53,11 @@ export default function StrategyForm({ onResults }) {
     if (!symbol) return;
     try {
       await validateTicker(symbol);
-      setConfig(c => ({ ...c, symbols: [...new Set([...c.symbols, symbol])] }));
-      setTickerInput('');
+      setConfig((c) => ({
+        ...c,
+        symbols: [...new Set([...c.symbols, symbol])],
+      }));
+      setTickerInput("");
       setTickerError(null);
     } catch {
       setTickerError(`${symbol} not found`);
@@ -50,24 +65,41 @@ export default function StrategyForm({ onResults }) {
   };
 
   const handleDataSourceChange = (e) => {
-    const live = e.target.value === 'live';
+    const live = e.target.value === "live";
     setUseLiveData(live);
-    setConfig(c => ({ ...c, use_live_data: live, symbols: [] }));
+    setConfig((c) => ({ ...c, use_live_data: live, symbols: [] }));
   };
 
   const handleSubmit = async () => {
     if (!config.symbols.length) return;
     setStatus("pending");
     try {
-      const { data } = await runBacktest(config);
+      const payload =
+        mode === "walkforward"
+          ? {
+              symbols: config.symbols,
+              strategy: config.strategy,
+              initial_capital: config.initial_capital,
+              use_live_data: config.use_live_data,
+              start_date: config.start_date,
+              train_years: 3,
+              test_years: 1,
+              short_periods: [10, 20, 30, 50],
+              long_periods: [50, 100, 150, 200],
+            }
+          : config;
+
+      const fn = mode === "walkforward" ? runWalkForward : runBacktest;
+      const { data } = await fn(payload);
       const runId = data.run_id;
+
       const interval = setInterval(async () => {
         try {
           const result = await getBacktestResult(runId);
           if (result.data.status === "complete") {
             clearInterval(interval);
             setStatus("complete");
-            onResults(result.data, config);
+            onResults(result.data, { ...config, mode });
           } else if (result.data.status === "error") {
             clearInterval(interval);
             setStatus("error");
@@ -87,14 +119,30 @@ export default function StrategyForm({ onResults }) {
       <div className="sf-section-label">Strategy</div>
 
       <div className="sf-field">
+        <label className="sf-label">Mode</label>
+        <select
+          className="sf-select"
+          value={mode}
+          onChange={(e) => setMode(e.target.value)}
+        >
+          <option value="backtest">Backtest</option>
+          <option value="walkforward">Walk Forward</option>
+        </select>
+      </div>
+
+      <div className="sf-field">
         <label className="sf-label">Type</label>
         <select
           className="sf-select"
           value={config.strategy}
-          onChange={e => setConfig(c => ({ ...c, strategy: e.target.value }))}
+          onChange={(e) =>
+            setConfig((c) => ({ ...c, strategy: e.target.value }))
+          }
         >
-          {strategies.map(s => (
-            <option key={s.id} value={s.id}>{s.name}</option>
+          {strategies.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
           ))}
         </select>
       </div>
@@ -103,7 +151,7 @@ export default function StrategyForm({ onResults }) {
         <label className="sf-label">Data source</label>
         <select
           className="sf-select"
-          value={useLiveData ? 'live' : 'csv'}
+          value={useLiveData ? "live" : "csv"}
           onChange={handleDataSourceChange}
         >
           <option value="csv">CSV files</option>
@@ -114,22 +162,33 @@ export default function StrategyForm({ onResults }) {
       {useLiveData ? (
         <div className="sf-field">
           <label className="sf-label">Add ticker</label>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: "flex", gap: 6 }}>
             <input
               className="sf-input"
               placeholder="e.g. AAPL"
               value={tickerInput}
-              onChange={e => setTickerInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAddTicker()}
+              onChange={(e) => setTickerInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddTicker()}
             />
-            <button className="sf-add-btn" onClick={handleAddTicker}>+</button>
+            <button className="sf-add-btn" onClick={handleAddTicker}>
+              +
+            </button>
           </div>
           {tickerError && <span className="sf-error">{tickerError}</span>}
           <div className="sf-tags">
-            {config.symbols.map(s => (
+            {config.symbols.map((s) => (
               <span key={s} className="sf-symbol-tag">
                 {s}
-                <button onClick={() => setConfig(c => ({ ...c, symbols: c.symbols.filter(x => x !== s) }))}>×</button>
+                <button
+                  onClick={() =>
+                    setConfig((c) => ({
+                      ...c,
+                      symbols: c.symbols.filter((x) => x !== s),
+                    }))
+                  }
+                >
+                  ×
+                </button>
               </span>
             ))}
           </div>
@@ -143,8 +202,10 @@ export default function StrategyForm({ onResults }) {
             value={config.symbols}
             onChange={handleSymbolChange}
           >
-            {symbols.map(s => (
-              <option key={s} value={s}>{s}</option>
+            {symbols.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
           <span className="sf-hint">Hold Ctrl to select multiple</span>
@@ -160,7 +221,9 @@ export default function StrategyForm({ onResults }) {
           className="sf-input"
           type="number"
           value={config.short_period}
-          onChange={e => setConfig(c => ({ ...c, short_period: parseInt(e.target.value) }))}
+          onChange={(e) =>
+            setConfig((c) => ({ ...c, short_period: parseInt(e.target.value) }))
+          }
         />
       </div>
 
@@ -170,7 +233,9 @@ export default function StrategyForm({ onResults }) {
           className="sf-input"
           type="number"
           value={config.long_period}
-          onChange={e => setConfig(c => ({ ...c, long_period: parseInt(e.target.value) }))}
+          onChange={(e) =>
+            setConfig((c) => ({ ...c, long_period: parseInt(e.target.value) }))
+          }
         />
       </div>
 
@@ -180,7 +245,12 @@ export default function StrategyForm({ onResults }) {
           className="sf-input"
           type="number"
           value={config.initial_capital}
-          onChange={e => setConfig(c => ({ ...c, initial_capital: parseFloat(e.target.value) }))}
+          onChange={(e) =>
+            setConfig((c) => ({
+              ...c,
+              initial_capital: parseFloat(e.target.value),
+            }))
+          }
         />
       </div>
 
@@ -190,7 +260,9 @@ export default function StrategyForm({ onResults }) {
         disabled={status === "pending" || !config.symbols.length}
       >
         {status === "pending" ? (
-          <><span className="sf-spinner" /> Running...</>
+          <>
+            <span className="sf-spinner" /> Running...
+          </>
         ) : (
           "Run backtest"
         )}
