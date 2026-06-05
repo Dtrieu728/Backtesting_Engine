@@ -201,3 +201,25 @@ async def validate_ticker(symbol: str):
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail= f"{symbol} not found")
+    
+
+@app.post("/api/export")
+def export_config(run_id: str, db: Session = Depends(get_db)):
+    run = db.query(BacktestRun).filter(BacktestRun.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    config = {
+        "strategy": run.strategy,
+        "symbols": run.symbols,
+        "short_period": run.short_period,
+        "long_period": run.long_period,
+        "initial_capital": run.initial_capital,
+        "sharpe": run.stats.get("sharpe_ratio"),
+        "exported_at": datetime.utcnow().isoformat()
+    }
+
+    with open("strategy_config.json", "w") as f:
+        json.dump(config, f, indent=2)
+
+    return config
