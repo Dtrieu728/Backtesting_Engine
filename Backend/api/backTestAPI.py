@@ -16,7 +16,7 @@ from db.database import SessionLocal
 from db.models import BacktestRun
 from metrics.performance import create_sharpe_ratio
 from data.Processed.data_handler import HistoricCSVDataHandler
-from strategies.moving_average import MovingAveragesLongShortStrategy, MovingAveragesLongStrategy
+from strategies.moving_average import MovingAveragesLongShortStrategy, MovingAveragesLongStrategy,MovingAveragesMomentumStrategy
 from strategies.rsi_reversion import RSIMeanReversionStrategy
 from strategies.strategy import BuyAndHoldStrategy
 from execution.execution import SimulatedExecutionHandler
@@ -351,6 +351,8 @@ def get_strategy(config, data, events, portfolio):
         return MovingAveragesLongStrategy(data, events, portfolio, config.short_period, config.long_period)
     elif config.strategy == 'long_short':
         return MovingAveragesLongShortStrategy(data, events, portfolio, config.short_period, config.long_period)
+    elif confiq.strategy == 'momentum':
+        return MovingAveragesMomentumStrategy(data, events, portfolio, period=config.period)
     elif config.strategy == 'buy_and_hold':
         return BuyAndHoldStrategy(data, events)
     elif config.strategy.startswith('rsi'):
@@ -418,8 +420,9 @@ async def get_strategies():
     return [
         {"id": "long_only", "name": "Moving Averages Long Only"},
         {"id": "long_short", "name": "Moving Averages Long Short"},
+        {"id": "momentum", "name": "Moving Averages Momentum"},
         {"id": "buy_and_hold", "name": "Buy and Hold"},
-        {"id": "rsi", "name": "RSI Mean Reversion"}
+        {"id": "rsi", "name": "RSI Mean Reversion"},
     ]
 
 @router.get("/symbols")
