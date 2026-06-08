@@ -16,7 +16,7 @@ from db.database import SessionLocal
 from db.models import BacktestRun
 from metrics.performance import create_sharpe_ratio
 from data.Processed.data_handler import HistoricCSVDataHandler
-from strategies.moving_average import MovingAveragesLongShortStrategy, MovingAveragesLongStrategy
+from strategies.moving_average import MovingAveragesLongShortStrategy, MovingAveragesLongStrategy, RSIMeanReversionStrategy
 from strategies.strategy import BuyAndHoldStrategy
 from execution.execution import SimulatedExecutionHandler
 from portfolio.portfolio import NaivePortfolio
@@ -352,6 +352,8 @@ def get_strategy(config, data, events, portfolio):
         return MovingAveragesLongShortStrategy(data, events, portfolio, config.short_period, config.long_period)
     elif config.strategy == 'buy_and_hold':
         return BuyAndHoldStrategy(data, events)
+    elif config.strategy.startswith('rsi'):
+        return RSIMeanReversionStrategy(data, events, portfolio,period=config.period, threshold=config.threshold)
     else:
         raise ValueError(f"Unknown strategy: {config.strategy}")
 
@@ -416,6 +418,7 @@ async def get_strategies():
         {"id": "long_only", "name": "Moving Averages Long Only"},
         {"id": "long_short", "name": "Moving Averages Long Short"},
         {"id": "buy_and_hold", "name": "Buy and Hold"},
+        {"id": "rsi", "name": "RSI Mean Reversion"}
     ]
 
 @router.get("/symbols")
