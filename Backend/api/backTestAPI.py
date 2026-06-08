@@ -16,7 +16,8 @@ from db.database import SessionLocal
 from db.models import BacktestRun
 from metrics.performance import create_sharpe_ratio
 from data.Processed.data_handler import HistoricCSVDataHandler
-from strategies.moving_average import MovingAveragesLongShortStrategy, MovingAveragesLongStrategy, RSIMeanReversionStrategy
+from strategies.moving_average import MovingAveragesLongShortStrategy, MovingAveragesLongStrategy
+from strategies.rsi_reversion import RSIMeanReversionStrategy
 from strategies.strategy import BuyAndHoldStrategy
 from execution.execution import SimulatedExecutionHandler
 from portfolio.portfolio import NaivePortfolio
