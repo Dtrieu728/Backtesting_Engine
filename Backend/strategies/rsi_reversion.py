@@ -116,49 +116,49 @@ class RSIMeanReversionStrategy(Strategy):
                             print(f"[RSI] SELL {symbol} @ {price} RSI={rsi:.2f}")
                             
                             
-def plot_strategy(self):
-        style.use('ggplot')
-        for symbol in self.symbol_list:
-            sig_df = self.signals[symbol].set_index('Date').sort_index()
+    def plot_strategy(self):
+            style.use('ggplot')
+            for symbol in self.symbol_list:
+                sig_df = self.signals[symbol].set_index('Date').sort_index()
 
-            # price data
-            df = self.data.all_data[symbol].copy()
-            if 'Date' in df.columns:
-                df.set_index('Date', inplace=True)
-            df.sort_index(inplace=True)
-            df.columns = ['Price']
+                # price data
+                df = self.data.all_data[symbol].copy()
+                if 'Date' in df.columns:
+                    df.set_index('Date', inplace=True)
+                df.sort_index(inplace=True)
+                df.columns = ['Price']
 
-            # RSI over full price history
-            delta    = df['Price'].diff()
-            gain     = delta.clip(lower=0)
-            loss     = -delta.clip(upper=0)
-            avg_gain = gain.ewm(com=self.period - 1, min_periods=self.period).mean()
-            avg_loss = loss.ewm(com=self.period - 1, min_periods=self.period).mean()
-            avg_loss = avg_loss.replace(0, 1e-10)
-            df['RSI'] = 100 - (100 / (1 + avg_gain / avg_loss))
+                # RSI over full price history
+                delta    = df['Price'].diff()
+                gain     = delta.clip(lower=0)
+                loss     = -delta.clip(upper=0)
+                avg_gain = gain.ewm(com=self.period - 1, min_periods=self.period).mean()
+                avg_loss = loss.ewm(com=self.period - 1, min_periods=self.period).mean()
+                avg_loss = avg_loss.replace(0, 1e-10)
+                df['RSI'] = 100 - (100 / (1 + avg_gain / avg_loss))
 
-            buy_index  = sig_df[sig_df['Signal'] > 0].index
-            sell_index = sig_df[sig_df['Signal'] < 0].index
+                buy_index  = sig_df[sig_df['Signal'] > 0].index
+                sell_index = sig_df[sig_df['Signal'] < 0].index
 
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+                fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
 
-            # price + signals
-            df['Price'].plot(ax=ax1, color='dodgerblue', linewidth=1.0, label='Price')
-            ax1.plot(buy_index,  df.loc[buy_index,  'Price'], '^', markersize=10, color='g', label='Buy')
-            ax1.plot(sell_index, df.loc[sell_index, 'Price'], 'v', markersize=10, color='r', label='Sell')
-            ax1.set_title(f"{self.name} - {symbol}")
-            ax1.set_ylabel('Price')
-            ax1.legend()
+                # price + signals
+                df['Price'].plot(ax=ax1, color='dodgerblue', linewidth=1.0, label='Price')
+                ax1.plot(buy_index,  df.loc[buy_index,  'Price'], '^', markersize=10, color='g', label='Buy')
+                ax1.plot(sell_index, df.loc[sell_index, 'Price'], 'v', markersize=10, color='r', label='Sell')
+                ax1.set_title(f"{self.name} - {symbol}")
+                ax1.set_ylabel('Price')
+                ax1.legend()
 
-            # RSI panel
-            df['RSI'].plot(ax=ax2, color='purple', linewidth=1.0, label='RSI')
-            ax2.axhline(self.threshold,           color='green', linestyle='--', label=f'Oversold ({self.threshold})')
-            ax2.axhline(100 - self.threshold,     color='red',   linestyle='--', label=f'Overbought ({100 - self.threshold})')
-            ax2.set_ylabel('RSI')
-            ax2.set_xlabel('Date')
-            ax2.set_ylim(0, 100)
-            ax2.legend()
+                # RSI panel
+                df['RSI'].plot(ax=ax2, color='purple', linewidth=1.0, label='RSI')
+                ax2.axhline(self.threshold,           color='green', linestyle='--', label=f'Oversold ({self.threshold})')
+                ax2.axhline(100 - self.threshold,     color='red',   linestyle='--', label=f'Overbought ({100 - self.threshold})')
+                ax2.set_ylabel('RSI')
+                ax2.set_xlabel('Date')
+                ax2.set_ylim(0, 100)
+                ax2.legend()
 
-            plt.tight_layout()
+                plt.tight_layout()
 
-        plt.show()
+            plt.show()
