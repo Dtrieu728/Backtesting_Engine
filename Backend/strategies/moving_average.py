@@ -322,55 +322,55 @@ class MovingAveragesMomentumStrategy(Strategy):
                             if self.verbose: print('Short', date, price)
                             
                             
-def plot_strategy(self):
-    style.use('ggplot')
-    for symbol in self.symbol_list:
-        # price data
-        df = self.data.all_data[symbol].copy()
-        if 'Date' in df.columns:
-            df.set_index('Date', inplace=True)
-        df.sort_index(ascending=True, inplace=True)
-        df.columns = ['Price']
+    def plot_strategy(self):
+        style.use('ggplot')
+        for symbol in self.symbol_list:
+            # price data
+            df = self.data.all_data[symbol].copy()
+            if 'Date' in df.columns:
+                df.set_index('Date', inplace=True)
+            df.sort_index(ascending=True, inplace=True)
+            df.columns = ['Price']
 
-        # compute EMAs
-        df['Short EMA'] = df['Price'].ewm(
-            span=self.short_period, min_periods=self.short_period, adjust=False
-        ).mean()
-        df['Long EMA'] = df['Price'].ewm(
-            span=self.long_period, min_periods=self.long_period, adjust=False
-        ).mean()
+            # compute EMAs
+            df['Short EMA'] = df['Price'].ewm(
+                span=self.short_period, min_periods=self.short_period, adjust=False
+            ).mean()
+            df['Long EMA'] = df['Price'].ewm(
+                span=self.long_period, min_periods=self.long_period, adjust=False
+            ).mean()
 
-        # momentum factor over time
-        df['Diff']   = df['Long EMA'] - df['Short EMA']
-        df['Factor'] = df['Diff'].apply(
-            lambda d: abs(2 * math.atan(d) / math.pi)
-        )
+            # momentum factor over time
+            df['Diff']   = df['Long EMA'] - df['Short EMA']
+            df['Factor'] = df['Diff'].apply(
+                lambda d: abs(2 * math.atan(d) / math.pi)
+            )
 
-        # crossover points — where short crosses long
-        df['Cross'] = df['Short EMA'] - df['Long EMA']
-        cross_above = df[(df['Cross'] > 0) & (df['Cross'].shift(1) <= 0)].index  # bullish
-        cross_below = df[(df['Cross'] < 0) & (df['Cross'].shift(1) >= 0)].index  # bearish
+            # crossover points — where short crosses long
+            df['Cross'] = df['Short EMA'] - df['Long EMA']
+            cross_above = df[(df['Cross'] > 0) & (df['Cross'].shift(1) <= 0)].index  # bullish
+            cross_below = df[(df['Cross'] < 0) & (df['Cross'].shift(1) >= 0)].index  # bearish
 
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
 
-        # price + EMAs + crossover markers
-        df['Price'].plot(ax=ax1, color='dodgerblue', linewidth=1.0, label='Price')
-        df['Short EMA'].plot(ax=ax1, color='grey', linewidth=1.0, label=f'EMA {self.short_period}')
-        df['Long EMA'].plot(ax=ax1, color='black', linewidth=1.0, label=f'EMA {self.long_period}')
-        ax1.plot(cross_above, df.loc[cross_above, 'Price'], '^', markersize=10, color='g', label='Bullish Cross')
-        ax1.plot(cross_below, df.loc[cross_below, 'Price'], 'v', markersize=10, color='r', label='Bearish Cross')
-        ax1.set_title(f"{self.name} - {symbol}")
-        ax1.set_ylabel('Price')
-        ax1.legend()
+            # price + EMAs + crossover markers
+            df['Price'].plot(ax=ax1, color='dodgerblue', linewidth=1.0, label='Price')
+            df['Short EMA'].plot(ax=ax1, color='grey', linewidth=1.0, label=f'EMA {self.short_period}')
+            df['Long EMA'].plot(ax=ax1, color='black', linewidth=1.0, label=f'EMA {self.long_period}')
+            ax1.plot(cross_above, df.loc[cross_above, 'Price'], '^', markersize=10, color='g', label='Bullish Cross')
+            ax1.plot(cross_below, df.loc[cross_below, 'Price'], 'v', markersize=10, color='r', label='Bearish Cross')
+            ax1.set_title(f"{self.name} - {symbol}")
+            ax1.set_ylabel('Price')
+            ax1.legend()
 
-        # momentum factor panel
-        df['Factor'].plot(ax=ax2, color='purple', linewidth=1.0, label='Momentum Factor')
-        ax2.axhline(0.5, color='grey', linestyle='--', alpha=0.5, label='0.5 threshold')
-        ax2.set_ylabel('Factor (0-1)')
-        ax2.set_xlabel('Date')
-        ax2.set_ylim(0, 1)
-        ax2.legend()
+            # momentum factor panel
+            df['Factor'].plot(ax=ax2, color='purple', linewidth=1.0, label='Momentum Factor')
+            ax2.axhline(0.5, color='grey', linestyle='--', alpha=0.5, label='0.5 threshold')
+            ax2.set_ylabel('Factor (0-1)')
+            ax2.set_xlabel('Date')
+            ax2.set_ylim(0, 1)
+            ax2.legend()
 
-        plt.tight_layout()
+            plt.tight_layout()
 
-    plt.show()
+        plt.show()

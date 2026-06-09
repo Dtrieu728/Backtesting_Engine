@@ -351,12 +351,12 @@ def get_strategy(config, data, events, portfolio):
         return MovingAveragesLongStrategy(data, events, portfolio, config.short_period, config.long_period)
     elif config.strategy == 'long_short':
         return MovingAveragesLongShortStrategy(data, events, portfolio, config.short_period, config.long_period)
-    elif confiq.strategy == 'momentum':
-        return MovingAveragesMomentumStrategy(data, events, portfolio, period=config.period)
+    elif config.strategy == 'momentum':
+        return MovingAveragesMomentumStrategy(data, events, portfolio, config.short_period, config.long_period)
     elif config.strategy == 'buy_and_hold':
         return BuyAndHoldStrategy(data, events)
     elif config.strategy.startswith('rsi'):
-        return RSIMeanReversionStrategy(data, events, portfolio,period=config.period, threshold=config.threshold)
+        return RSIMeanReversionStrategy(data, events, portfolio,period=config.short_period, threshold=config.long_period)
     else:
         raise ValueError(f"Unknown strategy: {config.strategy}")
 
