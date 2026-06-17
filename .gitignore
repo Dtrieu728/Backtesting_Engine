@@ -8,6 +8,7 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+SoftwareDesignDocument.md
 
 # Bash scripts
 Scripts/
