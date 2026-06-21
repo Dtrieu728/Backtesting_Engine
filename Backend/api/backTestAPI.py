@@ -30,7 +30,14 @@ router = APIRouter()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 csv_dir = os.path.join(BASE_DIR, 'data', 'raw')
 
-
+try:
+    from api.backTestAPI import router
+    app.include_router(router, prefix="/api")
+    print("Router loaded successfully")
+except Exception as e:
+    import traceback
+    print("Router failed to load!")
+    traceback.print_exc()
 
 class BacktestConfig(BaseModel):
     symbols: list[str]
