@@ -19,6 +19,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "https://backtesting-engine-mklub5j0d-dustine-trieus-projects.vercel.app",
         "https://backtesting-engine.vercel.app",
+        "https://backtesting-engine-lb8p.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
